@@ -1,0 +1,59 @@
+--------------------------------------------------------------------------------------
+-- 'start' start timer from 0 to '_max_time_'. 
+-- 'stop' suspends timer
+--------------------------------------------------------------------------------------
+MODULE Timer(start, stop, _max_time_)
+  DEFINE
+	_time := time;
+  
+  VAR
+	time : -1 .. _max_time_;
+	
+  ASSIGN
+    init(time) 	:= -1;
+    next(time) 	:= case
+       time=-1 & start 		               	: 0;
+       time>-1 & !stop & time < _max_time_ 	: time + 1;
+       time = _max_time_ & !stop			: _max_time_;
+       TRUE                                 : time;
+    esac;
+	
+	INVAR
+		start != stop;
+		
+MODULE main
+  VAR
+	start: boolean;
+	stop : boolean;
+	timer : Timer(start, stop, 10);
+	
+	--* Number	   : 1.0
+	--* Description: timer never counts until it starts
+	--* Type	   : desirable property
+	--* Pattern	   : Absence pattern #2
+	LTLSPEC F(timer.start) -> (!(timer.time > -1) U timer.start)
+	
+	--* Number	   : 1.1
+	--* Description: time shall be additive
+	--* Type	   : desirable property
+	--* Intention  : 
+	--* Pattern	   : Universality pattern #1
+	LTLSPEC G(timer.time+1=next(timer.time) | timer.time=next(timer.time));
+	
+	--* Number	   : 1.2
+	--* Description: as long as 'stop' is true, timer stops counting
+	--* Type	   : desirable property
+	--* Intention  : 
+	--* Pattern	   : Universality pattern #1
+	LTLSPEC G(timer.stop -> timer.time = next(timer.time))
+	
+	--* Number	   : 1.3
+	--* Description: if start and stop are active at a moment, no state changes
+	--* Type	   : desirable property
+	--* Intention  : 
+	--* Pattern	   : Universality pattern #1
+	LTLSPEC G((stop & start) -> timer.time = next(timer.time))
+	
+
+	
+	

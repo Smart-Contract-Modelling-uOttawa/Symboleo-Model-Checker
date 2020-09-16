@@ -1,0 +1,78 @@
+--------------------------------------------------------------------------------------
+-- 'start' start timer from 0 to '_max_time_'. 
+-- 'stop' suspends timer
+--------------------------------------------------------------------------------------
+MODULE Timer(start, stop, _max_time_)
+  DEFINE
+	_time := time;
+  
+  VAR
+	time : -1 .. _max_time_;
+	
+  ASSIGN
+    init(time) 	:= -1;
+    next(time) 	:= case
+       time=-1 & start 		               	: 0;
+       time>-1 & !stop & time < _max_time_ 	: time + 1;
+       time = _max_time_ & !stop			: _max_time_;
+       TRUE                                 : time;
+    esac;
+	
+	INVAR
+		start != stop;
+
+--------------------------------------------------------------------------------------
+-- 'start' starts timer from 0 to '_max_time_'. 
+-- 'stop' stops timer
+--------------------------------------------------------------------------------------
+MODULE Event(start, stop, _max_time_)
+  DEFINE 
+	_inactive 	:= (state = inactive);
+	_happened 	:= (state = happened); 
+	_expired 	:= (state = expired);
+  
+  VAR 	
+	triggered	: boolean;
+	timer 		: Timer(start, stop, _max_time_);
+	state 		: {inactive, active, happened, expired};
+	performer	: {ALEX, MICHAEL, SOFIA};
+	
+  ASSIGN	
+	init(performer) := ALEX; 
+	next(performer)	:= case
+		state=active	: {ALEX, MICHAEL, SOFIA};
+		TRUE	 		: performer;
+	esac;
+  
+  ASSIGN
+	init(triggered) := FALSE; 
+	init(state)  	:= inactive;
+	next(state)  	:= case
+		state=inactive & start 								: active;
+		state=active & triggered & timer._time<_max_time_ 	: happened;
+		state=active & timer._time = _max_time_	   			: expired;
+		TRUE					   	 			 			: state;
+	esac;
+	
+MODULE main
+  VAR
+	start: boolean;
+	stop : boolean;
+	event: Event(start, stop, 10);
+	
+	--* Number	   : 1.0
+	--* Description: an expired/happened event never change state
+	--* Type	   : desirable property
+	--* Pattern	   : Universality pattern #3
+	LTLSPEC G(event._expired -> G event._expired)
+	LTLSPEC G(event._happened -> G event._happened)
+	
+	--* Number	   : 1.1
+	--* Description: an event finally happens or expires
+	--* Type	   : desirable property
+	--* Pattern	   : ???
+	LTLSPEC G(!stop) -> F (event._happened | event._expired)
+	
+	
+	
+	

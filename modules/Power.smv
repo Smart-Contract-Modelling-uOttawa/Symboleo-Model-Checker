@@ -1,0 +1,45 @@
+--------------------------------------------------------------------------------------
+-- 'cnt_in_effect'    indicates if the contract is in inEffect state
+-- 'cnt_suspension   indicates if the contract is in suspension state
+-- 'power_suspended' indicates if a power suspends the power
+-- 'cnt_suspended'   indicates if the contract suspension suspends the power
+-- 'pow_resumed'     indicates if a power resumption resumes the power
+-- 'cnt_resumed'     indicates if the contract resumption resumes the power
+--------------------------------------------------------------------------------------
+MODULE Power(cnt_in_effect, triggered, activated, expired, power_suspended, cnt_suspended,
+       	     terminated, exerted, pow_resumed, cnt_resumed, antecedent)
+  DEFINE 		  		 
+	_active 	 := (state = inEffect | state = suspension);
+	_suspended 	 := (power_suspended | cnt_suspended);
+  
+  VAR 
+	state 		: {not_created, create, inEffect, suspension, sTermination, unsTermination};  
+	sus_state	: {not_suspended, sus_by_contract, sus_by_power};
+  
+  ASSIGN
+	init(sus_state) := not_suspended;
+	next(sus_state)	:= case
+		sus_state=not_suspended & cnt_suspended 	: sus_by_contract;
+		sus_state=sus_by_contract & cnt_resumed		: not_suspended;
+		sus_state=not_suspended & power_suspended 	: sus_by_power;
+		sus_state=sus_by_power & pow_resumed		: not_suspended;
+		TRUE										: sus_state;
+	esac;
+  
+  ASSIGN
+   init(state) := not_created;
+   next(state) := case
+     cnt_in_effect & state = not_created 	& triggered & !antecedent : create;
+     cnt_in_effect & state = not_created 	& triggered & antecedent  : inEffect;
+     cnt_in_effect & state = create      	& activated               : inEffect;
+     cnt_in_effect & state = create      	& expired                 : unsTermination;
+     cnt_in_effect & state = inEffect    	& exerted                 : sTermination;
+     cnt_in_effect & state = inEffect   	& _suspended              : suspension;
+     cnt_in_effect & state = inEffect    	& expired                 : unsTermination;
+	 cnt_in_effect & _active  			 	& terminated              : unsTermination;
+     
+	 sus_state=sus_by_contract & state=suspension  & cnt_resumed 	  : inEffect;
+	 sus_state=sus_by_power	   & state=suspension  & pow_resumed      : inEffect;	
+	 
+     TRUE                                          				   	  : state;
+   esac;
