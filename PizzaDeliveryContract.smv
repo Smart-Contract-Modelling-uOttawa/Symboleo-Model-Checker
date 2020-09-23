@@ -243,9 +243,10 @@ MODULE Pizza_Contract(customer, restaurant, order_time)
 	PterCnt_exerted	:= terminated_C._happened;
 	sCTerminated 	:= !(Odel._active) & !(Opay._active) & !(Odeduct._active);
 	Opay_violated	:= paid._expired;
+	Odel_violated	:= delivered._expired;
 	
   VAR 
-	delivered 	 	: Event(Odel.state=inEffect, FALSE, order_time+30);
+	delivered 	 	: Event(Odel.state=inEffect, FALSE, 30);
 	deducted	 	: Event(Odeduct.state=inEffect, FALSE, 1);
 	paid		 	: Event(Opay.state=inEffect, FALSE, 5);
 	terminated_C 	: Event(PterCnt.state = inEffect, FALSE, 10);
@@ -263,7 +264,7 @@ MODULE Pizza_Contract(customer, restaurant, order_time)
 	Odeduct : Obligation(FALSE, C._o_activated, PterCnt_exerted,
 			(deducted._happened & deducted.performer = Odeduct_debtor._name & Odeduct_debtor._is_performer), TRUE, deducted._expired, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, deducted._expired);				  			  
 
-	PterCnt : Power(C._o_activated, Opay_violated, FALSE, FALSE, FALSE,
+	PterCnt : Power(C._o_activated, Odel_violated, FALSE, FALSE, FALSE,
 			FALSE, FALSE, PterCnt_exerted, FALSE, FALSE, TRUE);
 				   
 		
@@ -276,8 +277,8 @@ MODULE Pizza_Contract(customer, restaurant, order_time)
 	Opay_debtor   	: Party(Opay, customer, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
 	Opay_creditor   : Party(Opay, restaurant, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
 
-	PterCnt_debtor  : Party(PterCnt, customer, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
-	PterCnt_creditor: Party(PterCnt, restaurant, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
+	PterCnt_debtor  : Party(PterCnt, restaurant, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
+	PterCnt_creditor: Party(PterCnt, customer, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
    
   INVAR
 	customer != restaurant;
@@ -296,8 +297,18 @@ MODULE main
 	--* Description: a contract eventually terminates
 	--* Type 	   : desirable property
 	--* Pattern	   : Existence pattern #31
-	LTLSPEC F(pizza_cnt.C.state = sTermination | pizza_cnt.C.state = unsTermination) 
+	LTLSPEC F(pizza_cnt.C.state = sTermination | pizza_cnt.C.state = unsTermination)
 	
+	------------------------------------------------------------------------------------
+	-- Specific liveness
+	------------------------------------------------------------------------------------
+	--* Number	   : 2.0
+	--* Description: in case of late delivery, the restaurant is penalized no more than once.
+	--* Type	   : desirable property
+	--* Intention  : restaurant
+	--* Pattern	   : Absence pattern #13
+	LTLSPEC G(pizza_cnt.deducted._happened & pizza_cnt.deducted.performer = pizza_cnt.Odeduct_debtor._name & pizza_cnt.Odeduct_debtor._is_performer 
+				-> G !(pizza_cnt.deducted._inactive))
 	
 		
  

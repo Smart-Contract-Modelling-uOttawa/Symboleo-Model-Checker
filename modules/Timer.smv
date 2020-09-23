@@ -29,27 +29,27 @@ MODULE main
 	
 	--* Number	   : 1.0
 	--* Description: timer never counts until it starts
-	--* Type	   : desirable property
+	--* Type	   : necessary property
 	--* Pattern	   : Absence pattern #2
 	LTLSPEC F(timer.start) -> (!(timer.time > -1) U timer.start)
 	
 	--* Number	   : 1.1
 	--* Description: time shall be additive
-	--* Type	   : desirable property
+	--* Type	   : necessary property
 	--* Intention  : 
 	--* Pattern	   : Universality pattern #1
 	LTLSPEC G(timer.time+1=next(timer.time) | timer.time=next(timer.time));
 	
 	--* Number	   : 1.2
 	--* Description: as long as 'stop' is true, timer stops counting
-	--* Type	   : desirable property
+	--* Type	   : necessary property
 	--* Intention  : 
 	--* Pattern	   : Universality pattern #1
 	LTLSPEC G(timer.stop -> timer.time = next(timer.time))
 	
 	--* Number	   : 1.3
 	--* Description: if start and stop are active at a moment, no state changes
-	--* Type	   : desirable property
+	--* Type	   : necessary property
 	--* Intention  : 
 	--* Pattern	   : Universality pattern #1
 	LTLSPEC G((stop & start) -> timer.time = next(timer.time))
