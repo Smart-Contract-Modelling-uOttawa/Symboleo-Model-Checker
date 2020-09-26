@@ -1,8 +1,7 @@
 --------------------------------------------------------------------------------------
 -- 'start' start timer from 0 to '_max_time_'. 
--- 'stop' suspends timer
 --------------------------------------------------------------------------------------
-MODULE Timer(start, stop, _max_time_)
+MODULE Timer(start, _max_time_)
   DEFINE
 	_time := time;
   
@@ -13,19 +12,15 @@ MODULE Timer(start, stop, _max_time_)
     init(time) 	:= -1;
     next(time) 	:= case
        time=-1 & start 		               	: 0;
-       time>-1 & !stop & time < _max_time_ 	: time + 1;
-       time = _max_time_ & !stop			: _max_time_;
+       time>-1 & start & time < _max_time_ 	: time + 1;
+       time = _max_time_ & start			: _max_time_;
        TRUE                                 : time;
     esac;
-	
-	INVAR
-		start != stop;
 
 --------------------------------------------------------------------------------------
 -- 'start' starts timer from 0 to '_max_time_'. 
--- 'stop' stops timer
 --------------------------------------------------------------------------------------
-MODULE Event(start, stop, _max_time_)
+MODULE Event(start, _max_time_)
   DEFINE 
 	_inactive 	:= (state = inactive);
 	_happened 	:= (state = happened); 
@@ -33,7 +28,7 @@ MODULE Event(start, stop, _max_time_)
   
   VAR 	
 	triggered	: boolean;
-	timer 		: Timer(start, stop, _max_time_);
+	timer 		: Timer(start & !_happened & !_expired, _max_time_);
 	state 		: {inactive, active, happened, expired};
 	performer	: {ALEX, MICHAEL, SOFIA};
 	
@@ -239,6 +234,8 @@ MODULE Contract(triggered, activated, terminated, suspended, resumed,
 -- Pizza velivery contract
 --------------------------------------------------------------------------------------
 MODULE Pizza_Contract(customer, restaurant, order_time)
+  CONSTANTS 
+	"Odel", "Opay", "Odeduct", "PterCnt";
   DEFINE
 	PterCnt_exerted	:= terminated_C._happened;
 	sCTerminated 	:= !(Odel._active) & !(Opay._active) & !(Odeduct._active);
@@ -246,10 +243,10 @@ MODULE Pizza_Contract(customer, restaurant, order_time)
 	Odel_violated	:= delivered._expired;
 	
   VAR 
-	delivered 	 	: Event(Odel.state=inEffect, FALSE, 30);
-	deducted	 	: Event(Odeduct.state=inEffect, FALSE, 1);
-	paid		 	: Event(Opay.state=inEffect, FALSE, 5);
-	terminated_C 	: Event(PterCnt.state = inEffect, FALSE, 10);
+	delivered 	 	: Event(Odel.state=inEffect, 30);
+	deducted	 	: Event(Odeduct.state=inEffect, 1);
+	paid		 	: Event(Opay.state=inEffect, 5);
+	terminated_C 	: Event(PterCnt.state = inEffect, 10);
 	
 	
 	C 		: Contract(TRUE, TRUE, PterCnt_exerted, FALSE, FALSE, FALSE, FALSE, sCTerminated);
@@ -267,26 +264,25 @@ MODULE Pizza_Contract(customer, restaurant, order_time)
 	PterCnt : Power(C._o_activated, Odel_violated, FALSE, FALSE, FALSE,
 			FALSE, FALSE, PterCnt_exerted, FALSE, FALSE, TRUE);
 				   
-		
-	party_names 	: {Odel, Opay, Odeduct, PterCnt};
-	Odel_debtor   	: Party(Odel, restaurant, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
-	Odel_creditor 	: Party(Odel, customer, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
-	Odeduct_debtor  : Party(Odeduct, restaurant, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
-	Odeduct_creditor: Party(Odeduct, customer, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
+	Odel_debtor   	: Party("Odel", restaurant, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
+	Odel_creditor 	: Party("Odel", customer, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
+	Odeduct_debtor  : Party("Odeduct", restaurant, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
+	Odeduct_creditor: Party("Odeduct", customer, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
 	
-	Opay_debtor   	: Party(Opay, customer, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
-	Opay_creditor   : Party(Opay, restaurant, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
+	Opay_debtor   	: Party("Opay", customer, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
+	Opay_creditor   : Party("Opay", restaurant, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
 
-	PterCnt_debtor  : Party(PterCnt, restaurant, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
-	PterCnt_creditor: Party(PterCnt, customer, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
+	PterCnt_debtor  : Party("PterCnt", restaurant, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
+	PterCnt_creditor: Party("PterCnt", customer, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
    
   INVAR
 	customer != restaurant;
 	
 		
 MODULE main
+  CONSTANTS 
+	ALEX, Oak;
   VAR 
-	party_names : {ALEX, Oak};
 	pizza_cnt 	: Pizza_Contract(ALEX, Oak, 0);
 	
   ASSIGN

@@ -1,8 +1,7 @@
 --------------------------------------------------------------------------------------
 -- 'start' start timer from 0 to '_max_time_'. 
--- 'stop' suspends timer
 --------------------------------------------------------------------------------------
-MODULE Timer(start, stop, _max_time_)
+MODULE Timer(start, _max_time_)
   DEFINE
 	_time := time;
   
@@ -13,19 +12,15 @@ MODULE Timer(start, stop, _max_time_)
     init(time) 	:= -1;
     next(time) 	:= case
        time=-1 & start 		               	: 0;
-       time>-1 & !stop & time < _max_time_ 	: time + 1;
-       time = _max_time_ & !stop			: _max_time_;
+       time>-1 & start & time < _max_time_ 	: time + 1;
+       time = _max_time_ & start			: _max_time_;
        TRUE                                 : time;
     esac;
-	
-	INVAR
-		start != stop;
 
 --------------------------------------------------------------------------------------
 -- 'start' starts timer from 0 to '_max_time_'. 
--- 'stop' stops timer
 --------------------------------------------------------------------------------------
-MODULE Event(start, stop, _max_time_)
+MODULE Event(start, _max_time_)
   DEFINE 
 	_inactive 	:= (state = inactive);
 	_happened 	:= (state = happened); 
@@ -33,7 +28,7 @@ MODULE Event(start, stop, _max_time_)
   
   VAR 	
 	triggered	: boolean;
-	timer 		: Timer(start, stop, _max_time_);
+	timer 		: Timer(start & !_happened & !_expired, _max_time_);
 	state 		: {inactive, active, happened, expired};
 	performer	: {ALEX, MICHAEL, SOFIA};
 	
@@ -57,8 +52,7 @@ MODULE Event(start, stop, _max_time_)
 MODULE main
   VAR
 	start: boolean;
-	stop : boolean;
-	event: Event(start, stop, 10);
+	event: Event(start, 10);
 	
 	--* Number	   : 1.0
 	--* Description: an expired/happened event never change state
@@ -71,7 +65,7 @@ MODULE main
 	--* Description: an event finally happens or expires
 	--* Type	   : desirable property
 	--* Pattern	   : ???
-	LTLSPEC G(!stop) -> F (event._happened | event._expired)
+	LTLSPEC G(start) -> F (event._happened | event._expired)
 	
 	
 	

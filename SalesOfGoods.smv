@@ -1,8 +1,7 @@
 --------------------------------------------------------------------------------------
 -- 'start' start timer from 0 to '_max_time_'. 
--- 'stop' suspends timer
 --------------------------------------------------------------------------------------
-MODULE Timer(start, stop, _max_time_)
+MODULE Timer(start, _max_time_)
   DEFINE
 	_time := time;
   
@@ -13,19 +12,15 @@ MODULE Timer(start, stop, _max_time_)
     init(time) 	:= -1;
     next(time) 	:= case
        time=-1 & start 		               	: 0;
-       time>-1 & !stop & time < _max_time_ 	: time + 1;
-       time = _max_time_ & !stop			: _max_time_;
+       time>-1 & start & time < _max_time_ 	: time + 1;
+       time = _max_time_ & start			: _max_time_;
        TRUE                                 : time;
     esac;
-	
-	INVAR
-		start != stop;
 
 --------------------------------------------------------------------------------------
 -- 'start' starts timer from 0 to '_max_time_'. 
--- 'stop' stops timer
 --------------------------------------------------------------------------------------
-MODULE Event(start, stop, _max_time_)
+MODULE Event(start, _max_time_)
   DEFINE 
 	_inactive 	:= (state = inactive);
 	_happened 	:= (state = happened); 
@@ -33,7 +28,7 @@ MODULE Event(start, stop, _max_time_)
   
   VAR 	
 	triggered	: boolean;
-	timer 		: Timer(start, stop, _max_time_);
+	timer 		: Timer(start & !_happened & !_expired, _max_time_);
 	state 		: {inactive, active, happened, expired};
 	performer	: {ALEX, MICHAEL, SOFIA};
 	
@@ -53,6 +48,7 @@ MODULE Event(start, stop, _max_time_)
 		state=active & timer._time = _max_time_	   			: expired;
 		TRUE					   	 			 			: state;
 	esac;
+	
 	
 --------------------------------------------------------------------------------------
 -- 'name' is party name
@@ -239,6 +235,8 @@ MODULE Contract(triggered, activated, terminated, suspended, resumed,
 -- Sales of Goods contract
 --------------------------------------------------------------------------------------
 MODULE SOG_Contract(buyer, seller, pay_due_date, del_due_days)
+  CONSTANTS 
+	"Odel", "Opay",  "OlatePay", "SoBuyerDisclosure", "SoSellerDisclosure", "PsusDel", 			"PdelAssign", "PresumDel", "PterCnt";
   DEFINE
 	PsusDel_exerted	 	:= suspended_delivery._happened;
 	PresumDel_exerted	:= resumed_delivery._happened;
@@ -250,16 +248,16 @@ MODULE SOG_Contract(buyer, seller, pay_due_date, del_due_days)
 	Odel_violated 		:= Odel.state = violation;
   
   VAR 
-	delivered 			: Event(Odel.state=inEffect, suspended_delivery._happened & !resumed_delivery._happened, 	
-							del_due_days);
-	paid      			: Event(Opay.state=inEffect, FALSE, pay_due_date);
-	paidLate      		: Event(Opay.state=violation, FALSE, 10);
-	suspended_delivery 	: Event(PsusDel.state = inEffect, FALSE, 10);
-	resumed_delivery   	: Event(PresumDel.state = inEffect, FALSE, 10);
-	buyerDisclosed 		: Event(C._active, FALSE, 12);
-	sellerDisclosed 	: Event(C._active, FALSE, 12);
-	terminated_C   		: Event(PterCnt.state = inEffect, FALSE, 10);
-	sellerAssignedDel  	: Event(PdelAssign.state = inEffect, FALSE, 10);
+	delivered 			: Event(Odel.state=inEffect & 
+						!(suspended_delivery._happened & !resumed_delivery._happened), del_due_days);
+	paid      			: Event(Opay.state=inEffect, pay_due_date);
+	paidLate      		: Event(Opay.state=violation, 10);
+	suspended_delivery 	: Event(PsusDel.state = inEffect, 10);
+	resumed_delivery   	: Event(PresumDel.state = inEffect, 10);
+	buyerDisclosed 		: Event(C._active, 12);
+	sellerDisclosed 	: Event(C._active, 12);
+	terminated_C   		: Event(PterCnt.state = inEffect, 10);
+	sellerAssignedDel  	: Event(PdelAssign.state = inEffect, 10);
 
 	C 		 : Contract(TRUE, TRUE, PterCnt_exerted, FALSE, FALSE, FALSE, FALSE, sCTerminated);
 		   
@@ -291,35 +289,35 @@ MODULE SOG_Contract(buyer, seller, pay_due_date, del_due_days)
 	PdelAssign  : Power(C._o_activated, TRUE, FALSE, FALSE, FALSE,
 			   FALSE, FALSE, PdelAssign_exerted, FALSE, FALSE, TRUE);
 				   
+	Odel_debtor   	: Party("Odel", seller, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
+	Odel_creditor 	: Party("Odel", buyer, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
+	SellDis_debtor	: Party("SoSellerDisclosure", seller, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
+	SellDis_creditor: Party("SoSellerDisclosure", buyer, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
 		
-	party_names 	: {Odel, Opay, OlatePay, SoBuyerDisclosure, SoSellerDisclosure, PsusDel, PdelAssign, PresumDel, PterCnt};
-	Odel_debtor   	: Party(Odel, seller, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
-	Odel_creditor 	: Party(Odel, buyer, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
-	SellDis_debtor	: Party(SoSellerDisclosure, seller, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
-	SellDis_creditor: Party(SoSellerDisclosure, buyer, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
+	Opay_debtor   	: Party("Opay", buyer, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
+	Opay_creditor   : Party("Opay", seller, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
+	Olpay_debtor   	: Party("OlatePay", buyer, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
+	Olpay_creditor  : Party("OlatePay", seller, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
+	BuyDis_debtor   : Party("SoBuyerDisclosure", buyer, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
+	BuyDis_creditor	: Party("SoBuyerDisclosure", seller, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
 		
-	Opay_debtor   	: Party(Opay, buyer, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
-	Opay_creditor   : Party(Opay, seller, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
-	Olpay_debtor   	: Party(OlatePay, buyer, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
-	Olpay_creditor  : Party(OlatePay, seller, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
-	BuyDis_debtor   : Party(SoBuyerDisclosure, buyer, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
-	BuyDis_creditor	: Party(SoBuyerDisclosure, seller, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
+	PsusDel_debtor  : Party("PsusDel", buyer, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
+	PsusDel_creditor: Party("PsusDel", seller, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
+	PdelAsg_debtor  : Party("PdelAssign", buyer, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
+	PdelAsg_creditor: Party("PdelAssign", seller, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
 		
-	PsusDel_debtor  : Party(PsusDel, buyer, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
-	PsusDel_creditor: Party(PsusDel, seller, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
-	PdelAsg_debtor  : Party(PdelAssign, buyer, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
-	PdelAsg_creditor: Party(PdelAssign, seller, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
-		
-	PresDel_debtor  : Party(PresumDel, seller, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
-	PresDel_creditor: Party(PresumDel, buyer, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
-	PterCnt_debtor  : Party(PterCnt, seller, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
-	PterCnt_creditor: Party(PterCnt, buyer, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
+	PresDel_debtor  : Party("PresumDel", seller, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
+	PresDel_creditor: Party("PresumDel", buyer, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
+	PterCnt_debtor  : Party("PterCnt", seller, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
+	PterCnt_creditor: Party("PterCnt", buyer, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
    
   INVAR
 	buyer != seller;
 	
 		
 MODULE main
+  CONSTANTS 
+	ALEX, MICHAEL, SOFIA;
   VAR 
 	party_names : {ALEX, MICHAEL, SOFIA};
 	sales_cnt 	: SOG_Contract(ALEX, MICHAEL, 5, 30);
