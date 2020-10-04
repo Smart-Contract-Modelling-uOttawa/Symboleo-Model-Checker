@@ -36,13 +36,13 @@ MODULE Obligation(surviving, cnt_in_effect, cnt_untermination,
     next(state) := case
 		cnt_in_effect & state=not_created   & triggered & !antecedent : create;
 		cnt_in_effect & state=not_created   & triggered & antecedent  : inEffect;
-		cnt_in_effect & state=create        & activated               : inEffect;
+		cnt_in_effect & state=create        & antecedent              : inEffect;
 		cnt_in_effect & state=create        & (expired | discharged)  : discharge;
 		cnt_in_effect & state=inEffect      & fulfilled               : fulfillment;
-		cnt_in_effect & state=inEffect      & _suspended               : suspension;
+		cnt_in_effect & state=inEffect      & _suspended              : suspension;
 		cnt_in_effect & state=inEffect      & violated                : violation;
 		cnt_in_effect & _active            	& terminated              : unsTermination;
-		cnt_untermination & !surviving  	& _active           	  	  : unsTermination;	 
+		cnt_untermination & !surviving  	& _active           	  : unsTermination;	 
 		sus_state=sus_by_contract & state=suspension  & cnt_resumed   : inEffect;
 		sus_state=sus_by_power	  & state=suspension  & pow_resumed   : inEffect;		 	 
 		TRUE                                                          : state;

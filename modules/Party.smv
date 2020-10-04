@@ -44,5 +44,4 @@ MODULE Party(norm, name, removeL, addL, removeR, addR, removeP, addP)
 	!(addL & removeL) &
 	!(addR & removeR) &
 	!(addP & removeP) &
-	!(_is_rightHolder & _is_performer) &
 	!(_is_rightHolder & _is_liable);

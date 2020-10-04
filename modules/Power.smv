@@ -31,7 +31,7 @@ MODULE Power(cnt_in_effect, triggered, activated, expired, power_suspended, cnt_
    next(state) := case
      cnt_in_effect & state = not_created 	& triggered & !antecedent : create;
      cnt_in_effect & state = not_created 	& triggered & antecedent  : inEffect;
-     cnt_in_effect & state = create      	& activated               : inEffect;
+     cnt_in_effect & state = create      	& antecedent              : inEffect;
      cnt_in_effect & state = create      	& expired                 : unsTermination;
      cnt_in_effect & state = inEffect    	& exerted                 : sTermination;
      cnt_in_effect & state = inEffect   	& _suspended              : suspension;
