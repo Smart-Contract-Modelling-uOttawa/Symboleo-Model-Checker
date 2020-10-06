@@ -31,22 +31,28 @@ MODULE Event(start, _max_time_)
 	timer 		: Timer(start & !_happened & !_expired, _max_time_);
 	state 		: {inactive, active, happened, expired};
 	performer	: {"ALEX", "MICHAEL", "OAK"};
+
+  ASSIGN	
+	init(triggered) := FALSE; 
+	next(triggered)	:= case
+		state=active & start	: {FALSE, TRUE};
+		TRUE	 				: FALSE;
+	esac;
 	
   ASSIGN	
 	init(performer) := "ALEX"; 
 	next(performer)	:= case
-		state=active	: {"ALEX", "MICHAEL", "OAK"};
-		TRUE	 		: performer;
+		state=active & start	: {"ALEX", "MICHAEL", "OAK"};
+		TRUE	 				: performer;
 	esac;
   
   ASSIGN
-	init(triggered) := FALSE; 
 	init(state)  	:= inactive;
 	next(state)  	:= case
-		state=inactive & start 								: active;
-		state=active & triggered & timer._time<_max_time_ 	: happened;
-		state=active & timer._time = _max_time_	   			: expired;
-		TRUE					   	 			 			: state;
+		state=inactive & start 										: active;
+		state=active & start & triggered & timer._time<_max_time_ 	: happened;
+		state=active & start & timer._time = _max_time_	   			: expired;
+		TRUE					   	 			 					: state;
 	esac;
 	
 --------------------------------------------------------------------------------------
