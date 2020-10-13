@@ -1,0 +1,11 @@
+unset forward_search
+# dynamic_var_ordering -e sift
+go
+time
+check_ctlspec
+# write_order -o ord1.ord
+time
+check_ltlspec
+# write_order -o ord2.ord
+time
+quit
