@@ -474,10 +474,10 @@ MODULE main
 	------------------------------------------------------------------------------------
 	-- How to reach a goal
 	------------------------------------------------------------------------------------
-	--* Number	   : 6.0
+	--* Number	   : 5.0
 	--* Description: How to receive an order and terminate the contract without payment
 	--* Type	   : desirable property
 	--* Intention  : buyer
---	CTLSPEC !EF((sales_cnt.sCTerminated | sales_cnt.C.state=unsTermination)
---				& sales_cnt.Odel.state = fulfillment
---				& ! (sales_cnt.Opay.state = fulfillment))
+	CTLSPEC NAME CTL5_1 := !EF((sales_cnt.sCTerminated | sales_cnt.C.state=unsTermination)
+				& sales_cnt.Odel.state = fulfillment
+				& ! (sales_cnt.Opay.state = fulfillment | sales_cnt.OlatePay.state = fulfillment))
