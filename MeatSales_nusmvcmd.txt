@@ -1,0 +1,32 @@
+# unset forward_search
+# dynamic_var_ordering -e sift
+set input_order_file MeatSales.ord
+go
+time
+check_ctlspec -P CTL4_1
+time
+check_ctlspec -P CTL4_2
+time
+check_ctlspec -P CTL4_3
+time
+check_ctlspec -P CTL4_4
+time
+check_ctlspec -P CTL4_5
+time
+check_ctlspec -P CTL4_6
+time
+check_ctlspec -P CTL5_1
+time
+# write_order -o ord1.ord
+check_ltlspec -P LTL2_3
+time
+check_ltlspec -P LTL2_4
+time
+check_ltlspec -P LTL2_8
+time
+check_ltlspec -P LTL3_0
+time
+check_ltlspec -P LTL2_3
+# write_order -o ord2.ord
+time
+quit

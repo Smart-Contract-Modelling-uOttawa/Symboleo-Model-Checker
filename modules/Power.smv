@@ -2,11 +2,11 @@
 -- 'cnt_in_effect'   indicates if the contract is in inEffect state
 -- 'power_suspended' indicates if a power suspends the power
 -- 'cnt_suspended'   indicates if the contract suspension suspends the power
--- 'pow_resumed'     indicates if a power resumption resumes the power
+-- 'power_resumed'     indicates if a power resumption resumes the power
 -- 'cnt_resumed'     indicates if the contract resumption resumes the power
 --------------------------------------------------------------------------------------
 MODULE Power(cnt_in_effect, triggered, activated, expired, power_suspended, cnt_suspended,
-       	     terminated, exerted, pow_resumed, cnt_resumed, antecedent)
+       	     terminated, exerted, power_resumed, cnt_resumed, antecedent)
   DEFINE 		  		 
 	_active 	 := (state = inEffect | state = suspension);
 	_suspended 	 := (power_suspended | cnt_suspended);
@@ -21,7 +21,7 @@ MODULE Power(cnt_in_effect, triggered, activated, expired, power_suspended, cnt_
 		sus_state=not_suspended & cnt_suspended 	: sus_by_contract;
 		sus_state=sus_by_contract & cnt_resumed		: not_suspended;
 		sus_state=not_suspended & power_suspended 	: sus_by_power;
-		sus_state=sus_by_power & pow_resumed		: not_suspended;
+		sus_state=sus_by_power & power_resumed		: not_suspended;
 		TRUE										: sus_state;
 	esac;
   
@@ -38,7 +38,7 @@ MODULE Power(cnt_in_effect, triggered, activated, expired, power_suspended, cnt_
 	 cnt_in_effect & _active  			 	& terminated              : unsTermination;
      
 	 sus_state=sus_by_contract & state=suspension  & cnt_resumed 	  : inEffect;
-	 sus_state=sus_by_power	   & state=suspension  & pow_resumed      : inEffect;	
+	 sus_state=sus_by_power	   & state=suspension  & power_resumed      : inEffect;	
 	 
      TRUE                                          				   	  : state;
    esac;
