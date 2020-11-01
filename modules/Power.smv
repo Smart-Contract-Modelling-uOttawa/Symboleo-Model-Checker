@@ -1,6 +1,5 @@
 --------------------------------------------------------------------------------------
--- 'cnt_in_effect'    indicates if the contract is in inEffect state
--- 'cnt_suspension   indicates if the contract is in suspension state
+-- 'cnt_in_effect'   indicates if the contract is in inEffect state
 -- 'power_suspended' indicates if a power suspends the power
 -- 'cnt_suspended'   indicates if the contract suspension suspends the power
 -- 'pow_resumed'     indicates if a power resumption resumes the power

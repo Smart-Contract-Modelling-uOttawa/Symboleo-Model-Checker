@@ -1,14 +1,13 @@
 --------------------------------------------------------------------------------------
 -- 'cnt_in_effect'    indicates if the contract is in inEffect state
--- 'cnt_suspension    indicates if the contract is in suspension state
 -- 'power_suspended'  indicates if a power suspends the obligation
 -- 'cnt_suspended'    indicates if the contract suspension suspends the obligation
--- 'pow_resumed'      indicates if a power resumption resumes the obligation
+-- 'power_resumed'    indicates if a power resumption resumes the obligation
 -- 'cnt_resumed'      indicates if the contract resumption resumes the obligation
 --------------------------------------------------------------------------------------
 MODULE Obligation(surviving, cnt_in_effect, cnt_untermination,
                   fulfilled, triggered, violated, activated,
-				  expired, power_suspended, cnt_suspended, terminated, pow_resumed, 
+				  expired, power_suspended, cnt_suspended, terminated, power_resumed, 
 				  cnt_resumed, discharged, antecedent)
   DEFINE 		
 	_surviving	:= surviving;
@@ -27,7 +26,7 @@ MODULE Obligation(surviving, cnt_in_effect, cnt_untermination,
 		sus_state=not_suspended & !surviving & cnt_suspended 	: sus_by_contract;
 		sus_state=sus_by_contract & !surviving & cnt_resumed	: not_suspended;
 		sus_state=not_suspended & !surviving & power_suspended 	: sus_by_power;
-		sus_state=sus_by_power & !surviving & pow_resumed		: not_suspended;
+		sus_state=sus_by_power & !surviving & power_resumed		: not_suspended;
 		TRUE													: sus_state;
 	esac;
 	
@@ -44,6 +43,6 @@ MODULE Obligation(surviving, cnt_in_effect, cnt_untermination,
 		cnt_in_effect & _active            	& terminated              : unsTermination;
 		cnt_untermination & !surviving  	& _active           	  : unsTermination;	 
 		sus_state=sus_by_contract & state=suspension  & cnt_resumed   : inEffect;
-		sus_state=sus_by_power	  & state=suspension  & pow_resumed   : inEffect;		 	 
+		sus_state=sus_by_power	  & state=suspension  & power_resumed   : inEffect;		 	 
 		TRUE                                                          : state;
   esac;
