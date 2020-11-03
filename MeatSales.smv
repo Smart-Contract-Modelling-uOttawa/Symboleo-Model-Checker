@@ -343,7 +343,7 @@ MODULE main
 	--*		   		 PsusDel while paidLate is expired, then there is no way to resume payment(Opay)
 	--* 	   		 by using PresumDel. Therefore, payment(Opay) is always suspended and then
 	--*				 contract stays active.
---	LTLSPEC F(sales_cnt.C.state = sTermination | sales_cnt.C.state = unsTermination)
+	LTLSPEC NAME LTL1 := F(sales_cnt.C.state = sTermination | sales_cnt.C.state = unsTermination)
 
 	------------------------------------------------------------------------------------
 	-- Specific liveness
@@ -368,8 +368,8 @@ MODULE main
 	--* Fails	   : delivery does not pertain to payment because delivery obligation(Odel) is
 	--*			    independent of payment obligation(Opay)
 	--* Pattern	   : Precedence pattern #51
---	LTLSPEC !(sales_cnt.delivered._happened & sales_cnt.delivered.performer = sales_cnt.Odel_debtor._name & sales_cnt.Odel_debtor._is_performer) U
---						(sales_cnt.paid._happened & sales_cnt.paid.performer = sales_cnt.Opay_debtor._name & sales_cnt.Odel_debtor._is_performer)
+	LTLSPEC NAME LTL3 := !(sales_cnt.delivered._happened & sales_cnt.delivered.performer = sales_cnt.Odel_debtor._name & sales_cnt.Odel_debtor._is_performer) U
+						(sales_cnt.paid._happened & sales_cnt.paid.performer = sales_cnt.Opay_debtor._name & sales_cnt.Odel_debtor._is_performer)
 
 	--* Number	   : 2.2
 	--* Description: it is possible to suspend delivery whenever payment is ignored
@@ -390,16 +390,16 @@ MODULE main
 	--* Type	   : desirable property
 	--* Intention  : buyer
 	--* Pattern	   : Absence pattern #13
-	LTLSPEC NAME LTL2_3 := G(sales_cnt.paidLate._happened & sales_cnt.paidLate.performer = sales_cnt.Olpay_debtor._name & sales_cnt.Olpay_debtor._is_performer
+	LTLSPEC NAME LTL2 := G(sales_cnt.paidLate._happened & sales_cnt.paidLate.performer = sales_cnt.Olpay_debtor._name & sales_cnt.Olpay_debtor._is_performer
 				-> G !(sales_cnt.paidLate._inactive))
 
 	--* Number	   : 2.4
 	--* Description: the contract shall terminates if delivery and payment are done before their due dates.
 	--* Type	   : desirable property
 	--* Pattern	   : Universality pattern #23
-	LTLSPEC NAME LTL2_4 := G((sales_cnt.delivered._happened & sales_cnt.delivered.performer = sales_cnt.Odel_debtor._name & sales_cnt.Odel_debtor._is_performer & sales_cnt.paid._happened &
-					sales_cnt.paid.performer = sales_cnt.Opay_debtor._name & sales_cnt.Opay_debtor._is_performer)
-					-> F sales_cnt.C.state=sTermination)
+--	LTLSPEC NAME LTL2_4 := G((sales_cnt.delivered._happened & sales_cnt.delivered.performer = sales_cnt.Odel_debtor._name & sales_cnt.Odel_debtor._is_performer & sales_cnt.paid._happened &
+--					sales_cnt.paid.performer = sales_cnt.Opay_debtor._name & sales_cnt.Opay_debtor._is_performer)
+--					-> F sales_cnt.C.state=sTermination)
 
 	--* Number	   : 2.5
 	--* Description: it is possible to resume delivery obligation
@@ -435,7 +435,7 @@ MODULE main
 	--* Type	   : desirable property
 	--* Intention  : buyer
 	--* Pattern	   : Absence pattern #13
-	LTLSPEC NAME LTL2_8 := G(sales_cnt.OlatePay.state = fulfillment -> G !(sales_cnt.OlatePay.state = inEffect))
+--	LTLSPEC NAME LTL2_8 := G(sales_cnt.OlatePay.state = fulfillment -> G !(sales_cnt.OlatePay.state = inEffect))
 
 	--* Number	   : 2.9
 	--* Description: delivery assignment transfers the right from ALEX to SOFIA
@@ -452,7 +452,7 @@ MODULE main
 	--* Description: payment and late payment should not be active together
 	--* Type	   : desirable property
 	--* Pattern	   : Absence pattern #13
-	LTLSPEC NAME LTL3_0 := G(sales_cnt.OlatePay.state = inEffect -> G !(sales_cnt.Opay.state = inEffect))
+--	LTLSPEC NAME LTL3_0 := G(sales_cnt.OlatePay.state = inEffect -> G !(sales_cnt.Opay.state = inEffect))
 
 	------------------------------------------------------------------------------------
 	-- Specific reachability(as a subset of liveness)
@@ -476,6 +476,6 @@ MODULE main
 	--* Description: How to receive an order and terminate the contract without payment
 	--* Type	   : desirable property
 	--* Intention  : buyer
-	CTLSPEC NAME CTL5_1 := !EF((sales_cnt.sCTerminated | sales_cnt.C.state=unsTermination)
+	CTLSPEC NAME CTL5 := !EF((sales_cnt.sCTerminated | sales_cnt.C.state=unsTermination)
 				& sales_cnt.Odel.state = fulfillment
 				& ! (sales_cnt.Opay.state = fulfillment | sales_cnt.OlatePay.state = fulfillment))
