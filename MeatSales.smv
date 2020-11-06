@@ -1,3 +1,5 @@
+#define PERFORMERS_DOMAIN "CBEEF", "COSTCO"
+
 --------------------------------------------------------------------------------------
 -- 'start' start timer from 0 to '_max_time_'.
 --------------------------------------------------------------------------------------
@@ -30,7 +32,7 @@ MODULE Event(started, _max_time_)
 	triggered	: boolean;
 	timer 		: Timer(started & !_happened & !_expired, _max_time_);
 	state 		: {inactive, active, happened, expired};
-	performer	: {"CBEEF", "COSTCO"};
+	performer	: {PERFORMERS_DOMAIN};
 
   ASSIGN
 	init(triggered) := FALSE;
@@ -40,9 +42,9 @@ MODULE Event(started, _max_time_)
 	esac;
 
   ASSIGN
-	init(performer) := "CBEEF";
+	init(performer) := {PERFORMERS_DOMAIN};
 	next(performer)	:= case
-		state=active & started	: {"CBEEF", "COSTCO"};
+		state=active & started	: {PERFORMERS_DOMAIN};
 		TRUE	 				: performer;
 	esac;
 
@@ -112,7 +114,7 @@ MODULE Party(norm, name, removeL, addL, removeR, addR, removeP, addP)
 --------------------------------------------------------------------------------------
 MODULE Obligation(surviving, cnt_in_effect, cnt_untermination,
                   fulfilled, triggered, violated, activated,
-				  expired1, power_suspended, cnt_suspended, terminated, power_resumed, 
+				  expired1, power_suspended, cnt_suspended, terminated, power_resumed,
 				  cnt_resumed, discharged, antecedent)
   DEFINE
 	_surviving	:= surviving;
@@ -148,7 +150,7 @@ MODULE Obligation(surviving, cnt_in_effect, cnt_untermination,
 		cnt_in_effect & _active            	& terminated              : unsTermination;
 		cnt_untermination & !surviving  	& _active           	  : unsTermination;
 		sus_state=sus_by_contract & state=suspension  & cnt_resumed   : inEffect;
-		sus_state=sus_by_power	  & state=suspension  & power_resumed   : inEffect;		 	 
+		sus_state=sus_by_power	  & state=suspension  & power_resumed   : inEffect;
 		TRUE                                                          : state;
   esac;
 
@@ -327,7 +329,7 @@ MODULE MeatSales_Contract(buyer, seller, pay_due_date, del_due_days)
 
 MODULE main
   CONSTANTS
-	"CBEEF", "COSTCO";
+	PERFORMERS_DOMAIN;
   VAR
 	sales_cnt 	: MeatSales_Contract("COSTCO", "CBEEF", 4, 4);
 

@@ -1,3 +1,5 @@
+#define PERFORMERS_DOMAIN "ALEX", "MICHAEL", "OAK"
+
 --------------------------------------------------------------------------------------
 -- 'start' start timer from 0 to '_max_time_'.
 --------------------------------------------------------------------------------------
@@ -30,7 +32,7 @@ MODULE Event(start, _max_time_)
 	triggered	: boolean;
 	timer 		: Timer(start & !_happened & !_expired, _max_time_);
 	state 		: {inactive, active, happened, expired};
-	performer	: {"ALEX", "MICHAEL", "OAK"};
+	performer	: {PERFORMERS_DOMAIN};
 
   ASSIGN
 	init(triggered) := FALSE;
@@ -40,9 +42,9 @@ MODULE Event(start, _max_time_)
 	esac;
 
   ASSIGN
-	init(performer) := "ALEX";
+	init(performer) := {PERFORMERS_DOMAIN};
 	next(performer)	:= case
-		state=active & start	: {"ALEX", "MICHAEL", "OAK"};
+		state=active & start	: {PERFORMERS_DOMAIN};
 		TRUE	 				: performer;
 	esac;
 
@@ -290,7 +292,7 @@ MODULE Pizza_Contract(customer, restaurant)
 
 MODULE main
   CONSTANTS
-	"ALEX", "OAK";
+	PERFORMERS_DOMAIN;
   VAR
 	pizza_cnt 	: Pizza_Contract("ALEX", "OAK");
 
