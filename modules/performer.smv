@@ -1,0 +1,21 @@
+-- Generic module implementing the object Performer
+--
+-- We first define PERFORMERS_DOMAIN as a comma separated list
+-- We can then include this file with #include "modules/performers.smv"
+--
+-- Then, we can instantiate this module inside an Event or wherever it
+-- is needed
+
+
+#ifndef PERFORMERS_DOMAIN
+#define PERFORMERS_DOMAIN "P1", "P2", "P3"
+
+MODULE Performer(trigger)
+ VAR
+   performer : {PERFORMER_DOMAIN};
+ ASSIGN
+   -- init(performer) := {PERFORMER_DOMAIN}; -- this way one element is randomly taken from the PERFORMER_DOMAIN
+   next(performer) := case
+     trigger : {PERFORMERS_DOMAIN};
+     TRUE    : performer;
+   esac;
