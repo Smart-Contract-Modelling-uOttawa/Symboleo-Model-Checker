@@ -42,7 +42,7 @@ MODULE Event(start, _max_time_)
 	esac;
 
   ASSIGN
-	init(performer) := {PERFORMERS_DOMAIN};
+	-- init(performer) := {PERFORMERS_DOMAIN}; -- Pick one non deterministically among the possible values.
 	next(performer)	:= case
 		state=active & start	: {PERFORMERS_DOMAIN};
 		TRUE	 				: performer;
