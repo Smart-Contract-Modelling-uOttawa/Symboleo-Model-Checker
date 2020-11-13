@@ -248,12 +248,14 @@ MODULE MeatSales_Contract(buyer, seller, pay_due_date, del_due_days)
 						& PresDel_creditor._is_performer;
 	PterCnt_exerted	 	:= PterCnt._active & terminated_C._happened & terminated_C.performer=PterCnt_creditor._name
 						& PterCnt_creditor._is_performer;
-	sCTerminated 		:= !(Odel._active) & !(Opay._active) & !(OlatePay._active);
+	sCTerminated 		:= (C.state=inEffect) & !(Odel._active) & !(Opay._active) & !(OlatePay._active);
 
 	PdelAssign_exerted	:= PdelAssign._active & sellerAssignedDel._happened & sellerAssignedDel.performer=PdelAsg_creditor._name
 						& PdelAsg_creditor._is_performer;
 	Opay_violated		:= paid._expired | (paid._happened & !(paid.performer = Opay_debtor._name
 						& Opay_debtor._is_performer));
+	Opay_fulfilled		:= (paid._happened &
+						paid.performer = Opay_debtor._name & Opay_debtor._is_performer);
 	Odel_violated		:= delivered._expired | (delivered._happened &
 						!(delivered.performer = Odel_debtor._name & Odel_debtor._is_performer));
 	OlatePay_fulfilled  := (paidLate._happened & paidLate.performer = Olpay_debtor._name &
@@ -273,12 +275,12 @@ MODULE MeatSales_Contract(buyer, seller, pay_due_date, del_due_days)
 
 	C 		 : Contract(TRUE, TRUE, PterCnt_exerted, FALSE, FALSE, FALSE, FALSE, sCTerminated);
 
+--CHANGE TRUE antecedent to Opay_fulfilled
 	Odel 	 : Obligation(FALSE, C._o_activated, PterCnt_exerted,
                   (delivered._happened & delivered.performer = Odel_debtor._name & Odel_debtor._is_performer),
                   TRUE, Odel_violated, FALSE, FALSE, PsusDel_exerted, FALSE, FALSE, PresumDel_exerted, FALSE, FALSE, TRUE);
 
-	Opay 	 : Obligation(FALSE, C._o_activated, PterCnt_exerted, (paid._happened &
-				paid.performer = Opay_debtor._name & Opay_debtor._is_performer), TRUE, Opay_violated, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE);
+	Opay 	 : Obligation(FALSE, C._o_activated, PterCnt_exerted, Opay_fulfilled, TRUE, Opay_violated, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE);
 
 	OlatePay : Obligation(FALSE, C._o_activated, PterCnt_exerted,
                   OlatePay_fulfilled, Opay_violated, paidLate._expired, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE);
@@ -294,7 +296,7 @@ MODULE MeatSales_Contract(buyer, seller, pay_due_date, del_due_days)
 			   FALSE, FALSE, PsusDel_exerted, FALSE, FALSE, TRUE);
 
 	PresumDel: Power(C._o_activated, OlatePay_fulfilled, FALSE, FALSE, FALSE, FALSE, FALSE, PresumDel_exerted, FALSE, FALSE, TRUE);
-
+			 
 	PterCnt  : Power(C._o_activated, Odel_violated, FALSE, FALSE, FALSE,
 			   FALSE, FALSE, PterCnt_exerted, FALSE, FALSE, TRUE);
 
@@ -329,7 +331,7 @@ MODULE MeatSales_Contract(buyer, seller, pay_due_date, del_due_days)
 
 MODULE main
   CONSTANTS
-	PERFORMERS_DOMAIN;
+	"CBEEF", "COSTCO";
   VAR
 	sales_cnt 	: MeatSales_Contract("COSTCO", "CBEEF", 4, 4);
 
@@ -369,9 +371,14 @@ MODULE main
 	--* Pattern	   : Precedence pattern #51
 	--* Fails	   : delivery does not pertain to payment because delivery obligation(Odel) is
 	--*			    independent of payment obligation(Opay)
-	--* Pattern	   : Precedence pattern #51
-	LTLSPEC NAME LTL3 := !(sales_cnt.delivered._happened & sales_cnt.delivered.performer = sales_cnt.Odel_debtor._name & sales_cnt.Odel_debtor._is_performer) U
-						(sales_cnt.paid._happened & sales_cnt.paid.performer = sales_cnt.Opay_debtor._name & sales_cnt.Odel_debtor._is_performer)
+--	--* Pattern	   : Precedence pattern #51
+	--* Pattern	   : Absence pattern #12
+--	LTLSPEC NAME LTL3 := !(sales_cnt.delivered._happened & sales_cnt.delivered.performer = sales_cnt.Odel_debtor._name & sales_cnt.Odel_debtor._is_performer) U
+--						(sales_cnt.paid._happened & sales_cnt.paid.performer = sales_cnt.Opay_debtor._name & sales_cnt.Odel_debtor._is_performer)
+	
+	LTLSPEC NAME LTL3 := F(sales_cnt.paid._happened & sales_cnt.paid.performer = sales_cnt.Opay_debtor._name & sales_cnt.Odel_debtor._is_performer) ->
+		(!(sales_cnt.delivered._happened & sales_cnt.delivered.performer = sales_cnt.Odel_debtor._name & sales_cnt.Odel_debtor._is_performer) U
+							(sales_cnt.paid._happened & sales_cnt.paid.performer = sales_cnt.Opay_debtor._name & sales_cnt.Odel_debtor._is_performer))
 
 	--* Number	   : 2.2
 	--* Description: it is possible to suspend delivery whenever payment is ignored

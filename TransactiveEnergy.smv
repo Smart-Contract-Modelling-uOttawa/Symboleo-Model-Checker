@@ -414,12 +414,12 @@ MODULE main
 	--* Type 	   : undesirable property
 	--* Pattern	   : Absence pattern #13
 	LTLSPEC NAME LTL2 := G(te_cnt.OsupplyEnergy1.state=fulfillment &
-						te_cnt.OsupplyEnergy1.state=fulfillment &
-						te_cnt.OsupplyEnergy1.state=fulfillment -> G!(te_cnt.PterCntByIso_exerted));
+						te_cnt.OsupplyEnergy2.state=fulfillment &
+						te_cnt.OsupplyEnergy3.state=fulfillment -> G!(te_cnt.PterCntByIso_exerted));
 						
 	--* Number	   : 2.2
 	--* Description: derp never pays less than twice as much as energy fee
 	--* Type 	   : undesirable property
 	--* Pattern	   : Exclusion pattern #1
-	CTLSPEC NAME LTL3 := !EF(te_cnt.derpPaid1._price + te_cnt.derpPaid2._price + te_cnt.derpPaid3._price > 
-						(te_cnt.energySupplied1._energy + te_cnt.energySupplied2._energy + te_cnt.energySupplied3._energy) * te_cnt.PRICE_PER_KWH);
+	CTLSPEC NAME CTL1 := !EF(te_cnt.derpPaid1._price + te_cnt.derpPaid2._price + te_cnt.derpPaid3._price > 
+						(te_cnt.energySupplied1._energy + te_cnt.energySupplied2._energy + te_cnt.energySupplied3._energy) * te_cnt.PRICE_PER_KWH *2);
