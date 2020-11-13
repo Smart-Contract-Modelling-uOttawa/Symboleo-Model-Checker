@@ -375,7 +375,7 @@ MODULE main
 	--* Description: it is possible to suspend delivery whenever payment is ignored
 	--* Type	   : desirable property
 	--* Intention  : buyer
-	--* Pattern	   : pattern #3
+	--* Pattern	   : Consequence pattern #3
 	--* Fails	   : CTL cannot model this property because AG checks all nodes including leaves.
 	--* 			 Because 'paid.expired' state is repreated in all nodes, 'suspended_delivery'
 	--*				 must happen in the future of a leaf(includig the leaf)! This is impossible
@@ -405,14 +405,14 @@ MODULE main
 	--* Description: it is possible to resume delivery obligation
 	--* Type	   : desirable property
 	--* Intention  : seller
-	--* Pattern	   : pattern #3
+	--* Pattern	   : Consequence pattern #3
 	--* Fails 	   : latePayment may resume a suspended delivery obligation. If latePayment is expired, delivery obligation never resumes.
 --	CTLSPEC AG(sales_cnt.Odel.state = suspension -> EF sales_cnt.Odel.state = inEffect)
 
 	--* Number	   : 2.6
 	--* Description: obligations are no longer in effect whenever contract terminates
 	--* Type	   : desirable property
-	--* Pattern	   : pattern #3
+	--* Pattern	   : Absence pattern #3
 	--* Fails	   : due to contract inconsistency. Contract termination power(PterCnt) is sensitive
 	--*				 to delivery event(not Odel status). Then, if delivery is expired, PterCnt may
 	--*				 terminate the contract(i.e., all active obligations terminate). Simultaneouly,
@@ -461,7 +461,7 @@ MODULE main
 	--* Description: it is always possible to activate powers and obligations
 	--*				 (i.e., all powers and obligations are useful)
 	--* Type	   : desirable property
-	--* Pattern	   : pattern #1
+	--* Pattern	   : Occurrence pattern #1
 	CTLSPEC NAME CTL4_1 := EF(sales_cnt.PsusDel._active);
 	CTLSPEC NAME CTL4_2 := EF(sales_cnt.PresumDel._active);
 	CTLSPEC NAME CTL4_3 := EF(sales_cnt.PterCnt._active);
@@ -476,6 +476,7 @@ MODULE main
 	--* Description: How to receive an order and terminate the contract without payment
 	--* Type	   : desirable property
 	--* Intention  : buyer
+	--* Pattern	   : Exclusion pattern #1
 	CTLSPEC NAME CTL5 := !EF((sales_cnt.sCTerminated | sales_cnt.C.state=unsTermination)
 				& sales_cnt.Odel.state = fulfillment
 				& ! (sales_cnt.Opay.state = fulfillment | sales_cnt.OlatePay.state = fulfillment))
