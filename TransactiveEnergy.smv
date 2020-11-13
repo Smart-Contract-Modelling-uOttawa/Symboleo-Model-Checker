@@ -112,7 +112,7 @@ MODULE Party(norm, name, removeL, addL, removeR, addR, removeP, addP)
 --------------------------------------------------------------------------------------
 MODULE Obligation(surviving, cnt_in_effect, cnt_untermination,
                   fulfilled, triggered, violated, activated,
-				  expired1, power_suspended, cnt_suspended, terminated, power_resumed, 
+				  expired1, power_suspended, cnt_suspended, terminated, power_resumed,
 				  cnt_resumed, discharged, antecedent)
   DEFINE
 	_surviving	:= surviving;
@@ -148,7 +148,7 @@ MODULE Obligation(surviving, cnt_in_effect, cnt_untermination,
 		cnt_in_effect & _active            	& terminated              : unsTermination;
 		cnt_untermination & !surviving  	& _active           	  : unsTermination;
 		sus_state=sus_by_contract & state=suspension  & cnt_resumed   : inEffect;
-		sus_state=sus_by_power	  & state=suspension  & power_resumed   : inEffect;		 	 
+		sus_state=sus_by_power	  & state=suspension  & power_resumed   : inEffect;
 		TRUE                                                          : state;
   esac;
 
@@ -232,37 +232,40 @@ MODULE Contract(triggered, activated, terminated, suspended, resumed,
 		state = unassign    & terminated 					: unsTermination;
 		TRUE                             					: state;
     esac;
-	
+
 
 --------------------------------------------------------------------------------------
 -- Domain dependent events
---------------------------------------------------------------------------------------	
+--------------------------------------------------------------------------------------
 MODULE Paid(started, _max_time_, price)
 	DEFINE
 		_price := amount;
+                amount := _amount * price;
 	VAR
-		amount : 0 .. price;
+		_amount : 0 .. 1;
 		event  : Event(started, _max_time_);
-		
+
 	ASSIGN
-		init(amount) := 0;
-		next(amount) := case
-			event._happened: price;
-			TRUE	 	   : amount;
+		init(_amount) := 0;
+		next(_amount) := case
+			event._happened: 1;
+			TRUE	 	   : _amount;
 		esac;
-		
+
 MODULE Supplied(started, _max_time_, energy)
 	DEFINE
 		_energy := amount;
+        DEFINE
+                amount := _amount * energy;
 	VAR
-		amount: 0 .. energy;
+		_amount: 0..1;
 		event : Event(started, _max_time_);
-		
+
 	ASSIGN
-		init(amount) := 0;
-		next(amount) := case
-			event._happened: energy;
-			TRUE	 	   : amount;
+		init(_amount) := 0;
+		next(_amount) := case
+			event._happened: 1;
+			TRUE	 	   : _amount;
 		esac;
 
 --------------------------------------------------------------------------------------
@@ -274,50 +277,50 @@ MODULE TE_Contract(caiso, derp, sup_due_hours)
 	FINE 		  		:= 5;
 	PRICE_PER_KWH 		:= 1;
 	ENERGY_AMOUNT		:= 2000;
-	sCTerminated 		:= !(OsupplyEnergy1._active) & !(OsupplyEnergy2._active) & !(OsupplyEnergy3._active) & 
-					!(OpayByDerp1._active) & !(OpayByDerp2._active) & !(OpayByDerp3._active) & 
+	sCTerminated 		:= !(OsupplyEnergy1._active) & !(OsupplyEnergy2._active) & !(OsupplyEnergy3._active) &
+					!(OpayByDerp1._active) & !(OpayByDerp2._active) & !(OpayByDerp3._active) &
 					!(OpayByIso1._active) & !(OpayByIso2._active) & !(OpayByIso3._active);
 	PterCntByIso_exerted := PterCntByIso._active & terminated_C._happened;
 	PterCntByDerp_exerted:= PterCntByDerp._active & terminated_C._happened;
-	
+
 	PterCnt_exerted		:= (PterCntByIso._active | PterCntByDerp._active) & terminated_C._happened;
-	
+
 	creditInvoiceIssued1:= OpayByIso1.state=fulfillment;
 	creditInvoiceIssued2:= OpayByIso2.state=fulfillment;
 	creditInvoiceIssued3:= OpayByIso3.state=fulfillment;
-	
+
 	OpayByIso1_violated	:= OpayByIso1._active & isoPaid1.event._expired;
 	OpayByIso2_violated	:= OpayByIso2._active & isoPaid2.event._expired;
 	OpayByIso3_violated	:= OpayByIso3._active & isoPaid3.event._expired;
-	
+
 	Osupply1_violated	:= OsupplyEnergy1._active & energySupplied1.event._expired;
 	Osupply2_violated	:= OsupplyEnergy2._active & energySupplied2.event._expired;
 	Osupply3_violated	:= OsupplyEnergy3._active & energySupplied3.event._expired;
-	
+
 	OpayByDerp1_violated	:= OpayByDerp1._active & derpPaid1.event._expired;
 	OpayByDerp2_violated	:= OpayByDerp2._active & derpPaid2.event._expired;
 	OpayByDerp3_violated	:= OpayByDerp3._active & derpPaid3.event._expired;
-	
+
 	PimposePenalty1_exerted	 := PimposePenalty1._active & penalized1._happened;
 	PimposePenalty2_exerted	 := PimposePenalty2._active & penalized2._happened;
 	PimposePenalty3_exerted	 := PimposePenalty3._active & penalized3._happened;
-  
-  VAR 
+
+  VAR
 	bidAccepted1		 : boolean;
 	bidAccepted2		 : boolean;
 	bidAccepted3		 : boolean;
-	
+
 	energySupplied1 	: Supplied(OsupplyEnergy1.state=inEffect, sup_due_hours, ENERGY_AMOUNT);
 	energySupplied2 	: Supplied(OsupplyEnergy2.state=inEffect, sup_due_hours, ENERGY_AMOUNT);
 	energySupplied3 	: Supplied(OsupplyEnergy3.state=inEffect, sup_due_hours, ENERGY_AMOUNT);
-	
+
 	isoPaid1 			: Paid(OpayByIso1.state=inEffect, 4, PRICE_PER_KWH * ENERGY_AMOUNT);
 	isoPaid2 			: Paid(OpayByIso2.state=inEffect, 4, PRICE_PER_KWH * ENERGY_AMOUNT);
 	isoPaid3 			: Paid(OpayByIso3.state=inEffect, 4, PRICE_PER_KWH * ENERGY_AMOUNT);
 --	isoPaid1 			: Paid(OpayByIso1.state=inEffect, 4, PRICE_PER_KWH * energySupplied1._energy);
 --	isoPaid2 			: Paid(OpayByIso2.state=inEffect, 4, PRICE_PER_KWH * energySupplied2._energy);
 --	isoPaid3 			: Paid(OpayByIso3.state=inEffect, 4, PRICE_PER_KWH * energySupplied3._energy);
-	
+
 --	derpPaid1 			: Event(OpayByDerp1.state=inEffect, noticed1.timer._time+30);
 --	derpPaid2 			: Event(OpayByDerp2.state=inEffect, noticed2.timer._time+30);
 --	derpPaid3 			: Event(OpayByDerp3.state=inEffect, noticed3.timer._time+30);
@@ -331,70 +334,70 @@ MODULE TE_Contract(caiso, derp, sup_due_hours)
 --	derpPaid1 			: Event(OpayByDerp1.state=inEffect, 30);
 --	derpPaid2 			: Event(OpayByDerp2.state=inEffect, 30);
 --	derpPaid3 			: Event(OpayByDerp3.state=inEffect, 30);
-		
+
 	penalized1 			: Event(PimposePenalty1.state = inEffect, 2);
 	penalized2			: Event(PimposePenalty2.state = inEffect, 2);
 	penalized3			: Event(PimposePenalty3.state = inEffect, 2);
-	
+
 --	noticed1 			: Event(OpayByDerp1_violated, 2);
 --	noticed2			: Event(OpayByDerp2_violated, 2);
 --	noticed3			: Event(OpayByDerp3_violated, 2);
 
 	terminated_C   		: Event(PterCntByIso.state = inEffect | PterCntByDerp.state = inEffect, 4);
-	
+
 	C 		 		 : Contract(TRUE, TRUE, PterCnt_exerted, FALSE, FALSE, FALSE, FALSE, sCTerminated);
-	
-	OsupplyEnergy1 	 : Obligation(FALSE, C._o_activated, PterCnt_exerted, energySupplied1.event._happened, 
+
+	OsupplyEnergy1 	 : Obligation(FALSE, C._o_activated, PterCnt_exerted, energySupplied1.event._happened,
                   bidAccepted1, Osupply1_violated, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE);
-				  
-	OsupplyEnergy2 	 : Obligation(FALSE, C._o_activated, PterCnt_exerted, energySupplied2.event._happened, 
+
+	OsupplyEnergy2 	 : Obligation(FALSE, C._o_activated, PterCnt_exerted, energySupplied2.event._happened,
                   bidAccepted2, Osupply2_violated, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE);
-				 
-	OsupplyEnergy3 	 : Obligation(FALSE, C._o_activated, PterCnt_exerted, energySupplied3.event._happened, 
+
+	OsupplyEnergy3 	 : Obligation(FALSE, C._o_activated, PterCnt_exerted, energySupplied3.event._happened,
                   bidAccepted3, Osupply3_violated, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE);
-				  
-				  
-	OpayByIso1 	 	 : Obligation(FALSE, C._o_activated, PterCnt_exerted, isoPaid1.event._happened, 
+
+
+	OpayByIso1 	 	 : Obligation(FALSE, C._o_activated, PterCnt_exerted, isoPaid1.event._happened,
 					creditInvoiceIssued1, OpayByIso1_violated, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE);
-	OpayByIso2 	 	 : Obligation(FALSE, C._o_activated, PterCnt_exerted, isoPaid2.event._happened, 
+	OpayByIso2 	 	 : Obligation(FALSE, C._o_activated, PterCnt_exerted, isoPaid2.event._happened,
 					creditInvoiceIssued2, OpayByIso2_violated, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE);
-	OpayByIso3 	 	 : Obligation(FALSE, C._o_activated, PterCnt_exerted, isoPaid3.event._happened, 
+	OpayByIso3 	 	 : Obligation(FALSE, C._o_activated, PterCnt_exerted, isoPaid3.event._happened,
 					creditInvoiceIssued3, OpayByIso3_violated, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE);
-		   
-				   				  
-	OpayByDerp1 	 : Obligation(FALSE, C._o_activated, PterCnt_exerted, derpPaid1.event._happened, 
+
+
+	OpayByDerp1 	 : Obligation(FALSE, C._o_activated, PterCnt_exerted, derpPaid1.event._happened,
                   PimposePenalty1_exerted, OpayByDerp1_violated, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE);
-				  
-	OpayByDerp2 	 : Obligation(FALSE, C._o_activated, PterCnt_exerted, derpPaid2.event._happened, 
+
+	OpayByDerp2 	 : Obligation(FALSE, C._o_activated, PterCnt_exerted, derpPaid2.event._happened,
                   PimposePenalty2_exerted, OpayByDerp2_violated, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE);
 
-	OpayByDerp3 	 : Obligation(FALSE, C._o_activated, PterCnt_exerted, derpPaid3.event._happened, 
-                  PimposePenalty3_exerted, OpayByDerp3_violated, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE);		
-			 
+	OpayByDerp3 	 : Obligation(FALSE, C._o_activated, PterCnt_exerted, derpPaid3.event._happened,
+                  PimposePenalty3_exerted, OpayByDerp3_violated, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE);
+
 	PimposePenalty1 : Power(C._o_activated, Osupply1_violated, FALSE, FALSE, FALSE,
 			   FALSE, PterCnt_exerted, PimposePenalty1_exerted, FALSE, FALSE, TRUE);
-		
+
 	PimposePenalty2 : Power(C._o_activated, Osupply2_violated, FALSE, FALSE, FALSE,
 			   FALSE, PterCnt_exerted, PimposePenalty2_exerted, FALSE, FALSE, TRUE);
-			   
+
 	PimposePenalty3 : Power(C._o_activated, Osupply3_violated, FALSE, FALSE, FALSE,
 			   FALSE, PterCnt_exerted, PimposePenalty3_exerted, FALSE, FALSE, TRUE);
-	
-	PterCntByIso  : Power(C._o_activated, TRUE, FALSE, FALSE, FALSE, FALSE, PterCnt_exerted, PterCntByIso_exerted, 	
+
+	PterCntByIso  : Power(C._o_activated, TRUE, FALSE, FALSE, FALSE, FALSE, PterCnt_exerted, PterCntByIso_exerted,
 			   FALSE, FALSE, OpayByDerp1_violated | OpayByDerp2_violated | OpayByDerp3_violated);
-	
-	PterCntByDerp  : Power(C._o_activated, TRUE, FALSE, FALSE, FALSE, FALSE, PterCnt_exerted, 
+
+	PterCntByDerp  : Power(C._o_activated, TRUE, FALSE, FALSE, FALSE, FALSE, PterCnt_exerted,
 			   PterCntByDerp_exerted, FALSE, FALSE, TRUE);
-				   
+
   INVAR
 	caiso != derp;
-		
+
 MODULE main
-  CONSTANTS 
+  CONSTANTS
 	"caiso", "derp";
-  VAR 
+  VAR
 	te_cnt 	: TE_Contract("caiso", "derp", 4);
-		
+
   ASSIGN
 	------------------------------------------------------------------------------------
 	-- Generic liveness
@@ -404,8 +407,8 @@ MODULE main
 	--* Type 	   : desirable property
 	--* Pattern	   : Existence pattern #31
 	LTLSPEC NAME LTL1 := F(te_cnt.C.state = sTermination | te_cnt.C.state = unsTermination)
-	
-	
+
+
 	------------------------------------------------------------------------------------
 	-- Specific safety
 	------------------------------------------------------------------------------------
@@ -416,10 +419,10 @@ MODULE main
 	LTLSPEC NAME LTL2 := G(te_cnt.OsupplyEnergy1.state=fulfillment &
 						te_cnt.OsupplyEnergy1.state=fulfillment &
 						te_cnt.OsupplyEnergy1.state=fulfillment -> G!(te_cnt.PterCntByIso_exerted));
-						
+
 	--* Number	   : 2.2
 	--* Description: derp never pays less than twice as much as energy fee
 	--* Type 	   : undesirable property
 	--* Pattern	   : Exclusion pattern #1
-	CTLSPEC NAME LTL3 := !EF(te_cnt.derpPaid1._price + te_cnt.derpPaid2._price + te_cnt.derpPaid3._price > 
+	CTLSPEC NAME LTL3 := !EF(te_cnt.derpPaid1._price + te_cnt.derpPaid2._price + te_cnt.derpPaid3._price >
 						(te_cnt.energySupplied1._energy + te_cnt.energySupplied2._energy + te_cnt.energySupplied3._energy) * te_cnt.PRICE_PER_KWH);
