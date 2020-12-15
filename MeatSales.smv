@@ -1,4 +1,4 @@
-#define PERFORMERS_DOMAIN "CBEEF", "COSTCO"
+--#define PERFORMERS_DOMAIN "CBEEF", "COSTCO"
 
 --------------------------------------------------------------------------------------
 -- 'start' start timer from 0 to '_max_time_'.
@@ -32,7 +32,7 @@ MODULE Event(started, _max_time_)
 	triggered	: boolean;
 	timer 		: Timer(started & !_happened & !_expired, _max_time_);
 	state 		: {inactive, active, happened, expired};
-	performer	: {PERFORMERS_DOMAIN};
+	performer	: {"CBEEF", "COSTCO"};
 
   ASSIGN
 	init(triggered) := FALSE;
@@ -44,7 +44,7 @@ MODULE Event(started, _max_time_)
   ASSIGN
 	-- init(performer) := {PERFORMERS_DOMAIN};  -- Pick one non deterministically among the possible values.
 	next(performer)	:= case
-		state=active & started	: {PERFORMERS_DOMAIN};
+		state=active & started	: {"CBEEF", "COSTCO"};
 		TRUE	 				: performer;
 	esac;
 
@@ -254,11 +254,13 @@ MODULE MeatSales_Contract(buyer, seller, pay_due_date, del_due_days)
 						& PdelAsg_creditor._is_performer;
 	Opay_violated		:= paid._expired | (paid._happened & !(paid.performer = Opay_debtor._name
 						& Opay_debtor._is_performer));
-	Opay_fulfilled		:= (paid._happened &
+	paid_performer		:= (paid._happened &
 						paid.performer = Opay_debtor._name & Opay_debtor._is_performer);
+	delivered_performer	:= (delivered._happened &
+						delivered.performer = Odel_debtor._name & Odel_debtor._is_performer);
 	Odel_violated		:= delivered._expired | (delivered._happened &
 						!(delivered.performer = Odel_debtor._name & Odel_debtor._is_performer));
-	OlatePay_fulfilled  := (paidLate._happened & paidLate.performer = Olpay_debtor._name &
+	paidlate_performer  := (paidLate._happened & paidLate.performer = Olpay_debtor._name &
 						Olpay_debtor._is_performer);
 
   VAR
@@ -275,15 +277,15 @@ MODULE MeatSales_Contract(buyer, seller, pay_due_date, del_due_days)
 
 	C 		 : Contract(TRUE, TRUE, PterCnt_exerted, FALSE, FALSE, FALSE, FALSE, sCTerminated);
 
---CHANGE TRUE antecedent to Opay_fulfilled
+--CHANGE TRUE antecedent to paid_performer
 	Odel 	 : Obligation(FALSE, C._o_activated, PterCnt_exerted,
                   (delivered._happened & delivered.performer = Odel_debtor._name & Odel_debtor._is_performer),
                   TRUE, Odel_violated, FALSE, FALSE, PsusDel_exerted, FALSE, FALSE, PresumDel_exerted, FALSE, FALSE, TRUE);
 
-	Opay 	 : Obligation(FALSE, C._o_activated, PterCnt_exerted, Opay_fulfilled, TRUE, Opay_violated, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE);
+	Opay 	 : Obligation(FALSE, C._o_activated, PterCnt_exerted, paid_performer, TRUE, Opay_violated, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE);
 
 	OlatePay : Obligation(FALSE, C._o_activated, PterCnt_exerted,
-                  OlatePay_fulfilled, Opay_violated, paidLate._expired, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE);
+                  paidlate_performer, Opay_violated, paidLate._expired, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE);
 
 	SoBuyerDisclosure : Obligation(TRUE, C._o_activated, PterCnt_exerted,
                   buyerDisclosed._expired, TRUE, (buyerDisclosed._happened & buyerDisclosed.performer = BuyDis_debtor._name & BuyDis_debtor._is_performer), FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE);
@@ -295,7 +297,7 @@ MODULE MeatSales_Contract(buyer, seller, pay_due_date, del_due_days)
 	PsusDel  : Power(C._o_activated, Opay_violated, FALSE, FALSE, FALSE,
 			   FALSE, FALSE, PsusDel_exerted, FALSE, FALSE, TRUE);
 
-	PresumDel: Power(C._o_activated, OlatePay_fulfilled, FALSE, FALSE, FALSE, FALSE, FALSE, PresumDel_exerted, FALSE, FALSE, TRUE);
+	PresumDel: Power(C._o_activated, paidlate_performer, FALSE, FALSE, FALSE, FALSE, FALSE, PresumDel_exerted, FALSE, FALSE, TRUE);
 			 
 	PterCnt  : Power(C._o_activated, Odel_violated, FALSE, FALSE, FALSE,
 			   FALSE, FALSE, PterCnt_exerted, FALSE, FALSE, TRUE);
@@ -489,3 +491,31 @@ MODULE main
 	CTLSPEC NAME CTL5 := !EF((sales_cnt.sCTerminated | sales_cnt.C.state=unsTermination)
 				& sales_cnt.Odel.state = fulfillment
 				& ! (sales_cnt.Opay.state = fulfillment | sales_cnt.OlatePay.state = fulfillment))
+				
+				
+	------------------------------------------------------------------------------------
+	-- Conformance Checking
+	------------------------------------------------------------------------------------
+	--* Number	   : 6.0
+	--* Description: the contract terminates if payment and delivery events happen by right parties.
+	--* Type	   : desirable property
+	--* Intention  : 
+	--* Pattern	   : Response pattern #41
+	LTLSPEC NAME LTL6 := G(sales_cnt.paid_performer & sales_cnt.delivered_performer -> 
+							F(sales_cnt.C.state = sTermination & sales_cnt.Opay.state = fulfillment & sales_cnt.Odel.state = fulfillment));
+	
+	--* Number	   : 6.1
+	--* Description: Seller delivers the meat under appropriate condition, but Buyer does not pay.
+	--* Type	   : desirable property
+	--* Intention  : 
+	--* Pattern	   : Response pattern #41
+	LTLSPEC NAME LTL6_1 := G(sales_cnt.delivered_performer & G(!sales_cnt.paid_performer) -> 
+							F(sales_cnt.Odel.state = fulfillment & sales_cnt.Opay.state = violation));
+							
+	--* Number	   : 6.2
+	--* Description: Buyer resumes the suspended delivery obligation by paying a fine.
+	--* Type	   : desirable property
+	--* Intention  : 
+	--* Pattern	   : Response pattern #41
+	LTLSPEC NAME LTL6_1 := G(sales_cnt.Odel.state = suspension & sales_cnt.paidlate_performer -> 
+							F(sales_cnt.OlatePay.state = fulfillment & sales_cnt.Opay.state = violation));
