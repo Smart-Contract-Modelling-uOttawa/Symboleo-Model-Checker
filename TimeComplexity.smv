@@ -261,7 +261,7 @@ MODULE Sample_Contract(party1, party2, sup_due_hours)
 	termCnt_exerted 	: Event(C.state=inEffect, Max_Event_Interval);
 
 	C 		 		 : Contract(TRUE, TRUE, termCnt_exerted._happened, FALSE, FALSE, FALSE, FALSE, sCTerminated);
-	
+
 	obl 	 : Obligation(SURVIVING, C._o_activated, termCnt_exerted._happened, fulfilled._happened, triggered._happened, violated._happened, activated._happened,
 				  EXPIRED, power_suspended._happened, cnt_suspended._happened, terminated._happened, power_resumed._happened,
 				  cnt_resumed._happened, discharged._happened, ANTECEDENT);
@@ -275,12 +275,12 @@ MODULE main
   VAR
 	s_cnt 	: Sample_Contract("caiso", "derp", 4);
 
-  ASSIGN
-	------------------------------------------------------------------------------------
-	-- Generic liveness
-	------------------------------------------------------------------------------------
-	--* Number	   : 1.0
-	--* Description: a contract eventually terminates
-	--* Type 	   : desirable property
-	--* Pattern	   : Existence pattern #31
-	LTLSPEC NAME LTL1 := F(s_cnt.C.state = sTermination | s_cnt.C.state = unsTermination)
+
+  ------------------------------------------------------------------------------------
+  -- Generic liveness
+  ------------------------------------------------------------------------------------
+  --* Number	   : 1.0
+  --* Description: a contract eventually terminates
+  --* Type 	   : desirable property
+  --* Pattern	   : Existence pattern #31
+  LTLSPEC NAME LTL1 := F(s_cnt.C.state = sTermination | s_cnt.C.state = unsTermination)
