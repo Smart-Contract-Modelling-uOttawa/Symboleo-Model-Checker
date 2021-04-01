@@ -1,0 +1,16 @@
+# unset forward_search
+#dynamic_var_ordering -e sift
+set input_order_file TransactiveEnergy.ord
+#time
+go;go_bmc
+time
+#check_ctlspec
+#write_order -o TransactiveEnergy.ord
+#time
+check_ltlspec -P LTL1
+time
+check_ltlspec -P LTL2
+time
+check_ctlspec -P CTL1
+time
+quit

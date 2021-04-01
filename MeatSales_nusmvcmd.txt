@@ -1,7 +1,10 @@
-# unset forward_search
+unset forward_search
 # dynamic_var_ordering -e sift
 set input_order_file MeatSales.ord
+time
 go
+time
+#write_order -o MeatSales.ord
 time
 check_ctlspec -P CTL4_1
 time
@@ -22,6 +25,7 @@ time
 check_ltlspec -P LTL2
 time
 check_ltlspec -P LTL3
-#write_order -o ord2.ord
+time
+check_ltlspec -P LTL12
 time
 quit
