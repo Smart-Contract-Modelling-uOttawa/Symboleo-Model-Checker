@@ -386,7 +386,7 @@ MODULE main
 	--* Description: the contract shall terminates if delivery and payment are done before their due dates.
 	--* Type	   : desirable property
 	--* Pattern	   : Universality pattern #23
-	LTLSPEC NAME LTL2_4 := G((sales_cnt.delivered._happened & sales_cnt.delivered.performer = sales_cnt.Odel_debtor._name & sales_cnt.Odel_debtor._is_performer & sales_cnt.paid._happened &
+	LTLSPEC NAME LTL5 := G((sales_cnt.delivered._happened & sales_cnt.delivered.performer = sales_cnt.Odel_debtor._name & sales_cnt.Odel_debtor._is_performer & sales_cnt.paid._happened &
 					sales_cnt.paid.performer = sales_cnt.Opay_debtor._name & sales_cnt.Opay_debtor._is_performer)
 					-> F sales_cnt.C.state=sTermination)
 
@@ -407,7 +407,7 @@ MODULE main
 	--*				 if payment is violated(Opay) and seller suspends delivery obligation(Odel),
 	--*			     paidLate event may resume Odel(by PresumDel) which is in conflict with
 	--*				 obligation termination.
-	LTLSPEC NAME LTL5 := G(sales_cnt.C.state = unsTermination -> G !(sales_cnt.Odel.state = inEffect |
+	LTLSPEC NAME LTL7 := G(sales_cnt.C.state = unsTermination -> G !(sales_cnt.Odel.state = inEffect |
 				sales_cnt.Opay.state = inEffect | sales_cnt.OlatePay.state = inEffect))
 
 	--* Number	   : 9
@@ -416,28 +416,28 @@ MODULE main
 	--* Fails	   : Opay(payment) is prior to Odel(delivery)
 	--* Intention  : Seller
 	--* Pattern	   : Precedence pattern #51
-	LTLSPEC NAME LTL6 := !(sales_cnt.Odel.state = fulfillment) U sales_cnt.Opay.state = fulfillment
+	LTLSPEC NAME LTL8 := !(sales_cnt.Odel.state = fulfillment) U sales_cnt.Opay.state = fulfillment
 
 	--* Number	   : 10
 	--* Description: penalty is counted maximum once
 	--* Type	   : desirable property
 	--* Intention  : buyer
 	--* Pattern	   : Absence pattern #13
-	LTLSPEC NAME LTL7 := G(sales_cnt.OlatePay.state = fulfillment -> G !(sales_cnt.OlatePay.state = inEffect))
+	LTLSPEC NAME LTL9 := G(sales_cnt.OlatePay.state = fulfillment -> G !(sales_cnt.OlatePay.state = inEffect))
 
 	--* Number	   : 11
 	--* Description: delivery assignment transfers the right from ALEX to SOFIA
 	--* Type	   : desirable property
 	--* Intention  : seller
 	--* Pattern	   : Universality pattern #23
---	LTLSPEC NAME LTL8 := G(sales_cnt.PdelAssign.state = sTermination -> G (!sales_cnt.Odel.party1.is_rightHolder &
+--	LTLSPEC NAME LTL10 := G(sales_cnt.PdelAssign.state = sTermination -> G (!sales_cnt.Odel.party1.is_rightHolder &
 --					sales_cnt.Odel.party3.is_rightHolder))
 	
 	--* Number	   : 12
 	--* Description: payment and late payment should not be active together
 	--* Type	   : desirable property
 	--* Pattern	   : Absence pattern #13
-	LTLSPEC NAME LTL9 := G(sales_cnt.OlatePay.state = inEffect -> G !(sales_cnt.Opay.state = inEffect))
+	LTLSPEC NAME LTL11 := G(sales_cnt.OlatePay.state = inEffect -> G !(sales_cnt.Opay.state = inEffect))
 	
 	------------------------------------------------------------------------------------
 	-- Specific reachability(as a subset of liveness)
@@ -474,7 +474,7 @@ MODULE main
 	--* Type	   : desirable property(liveness)
 	--* Intention  : 
 	--* Pattern	   : Response pattern #41
-	LTLSPEC NAME LTL10 := G(sales_cnt.paid_performer & sales_cnt.delivered_performer -> 
+	LTLSPEC NAME LTL12 := G(sales_cnt.paid_performer & sales_cnt.delivered_performer -> 
 							F(sales_cnt.C.state = sTermination & sales_cnt.Opay.state = fulfillment & sales_cnt.Odel.state = fulfillment));
 	
 	--* Number	   : 16
@@ -482,7 +482,7 @@ MODULE main
 	--* Type	   : desirable property
 	--* Intention  : 
 	--* Pattern	   : Response pattern #41
-	LTLSPEC NAME LTL11 := G(sales_cnt.delivered_performer & G(!sales_cnt.paid_performer) -> 
+	LTLSPEC NAME LTL13 := G(sales_cnt.delivered_performer & G(!sales_cnt.paid_performer) -> 
 							F(sales_cnt.Odel.state = fulfillment & sales_cnt.Opay.state = violation));
 							
 	--* Number	   : 17
@@ -490,5 +490,5 @@ MODULE main
 	--* Type	   : desirable property
 	--* Intention  : 
 	--* Pattern	   : Response pattern #41
-	LTLSPEC NAME LTL12 := G(sales_cnt.Odel.state = suspension & sales_cnt.paidlate_performer -> 
+	LTLSPEC NAME LTL6 := G(sales_cnt.Odel.state = suspension & sales_cnt.paidlate_performer -> 
 							F(sales_cnt.OlatePay.state = fulfillment & sales_cnt.Opay.state = violation));

@@ -26,6 +26,6 @@ check_ltlspec -P LTL2
 time
 check_ltlspec -P LTL3
 time
-check_ltlspec -P LTL12
+check_ltlspec -P LTL6
 time
 quit
