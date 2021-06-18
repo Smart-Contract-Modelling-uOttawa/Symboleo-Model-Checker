@@ -1,0 +1,283 @@
+MODULE Timer(start, _max_time_)
+ DEFINE _time :=  expired1 ? _max_time_ : -1;
+ VAR active1 : boolean;
+     expired1 : boolean;
+ ASSIGN
+   init(active1) := start;
+   next(active1) := (active1 | start) ? TRUE : active1;
+   init(expired1) :=  active1 ? {TRUE,FALSE} : FALSE;
+   next(expired1) :=  case
+           active1 & !expired1 : {TRUE,FALSE};
+           expired1           : TRUE;
+           TRUE              : FALSE;
+       esac;
+
+--------------------------------------------------------------------------------------
+-- 'started' starts timer.
+--------------------------------------------------------------------------------------
+MODULE Event(start, _max_time_)
+ DEFINE _inactive := (state = inactive);
+        _happened := (state = happened);
+        _expired  := (state = expired);
+ VAR triggered : boolean;
+         timer : Timer(start & !_happened & !_expired, _max_time_);
+         state : {inactive, active, happened, expired};
+ ASSIGN
+  init(triggered) := FALSE;
+  next(triggered) := (state=active & start) ? {FALSE,TRUE} : FALSE;
+
+  next(state)     := case
+    state=inactive & start                          : active;
+    state=active & start & triggered &
+                           timer._time<_max_time_   : happened;
+    state=active & start & timer._time = _max_time_ : expired;
+    TRUE                                            : state;
+  esac;
+
+--------------------------------------------------------------------------------------
+-- 'name' is party name
+-- 'removeL/R/P' releases liability, righHolder or performer position of a party
+-- 'addL/R/P' adds liability, righHolder or performer position to a party
+--------------------------------------------------------------------------------------
+MODULE Party(norm, name, removeL, addL, removeR, addR, removeP, addP)
+  DEFINE
+	_name 			:= name;
+	_norm			:= norm;
+	_is_performer	:= p_state=P;
+	_is_liable		:= l_state=L;
+	_is_rightHolder	:= r_state=R;
+
+  VAR
+	l_state	: {Init, L};
+	r_state	: {Init, R};
+	p_state	: {Init, P};
+
+  ASSIGN
+	init(l_state) := Init;
+	next(l_state)	:= case
+		l_state=Init & addL	: L;
+		l_state=L &removeL	: Init;
+		TRUE				: l_state;
+	esac;
+
+  ASSIGN
+	init(r_state) := Init;
+	next(r_state)	:= case
+		r_state=Init & addR	: R;
+		r_state=R & removeR : Init;
+		TRUE				: r_state;
+	esac;
+
+  ASSIGN
+	init(p_state) := Init;
+	next(p_state)	:= case
+		p_state=Init & addP : P;
+		p_state=P & removeP	: Init;
+		TRUE				: p_state;
+	esac;
+
+  INVAR
+	!(addL & removeL) &
+	!(addR & removeR) &
+	!(addP & removeP) &
+	!(_is_rightHolder & _is_liable);
+
+--------------------------------------------------------------------------------------
+-- 'cnt_in_effect'    indicates if the contract is in inEffect state
+-- 'power_suspended'  indicates if a power suspends the obligation
+-- 'cnt_suspended'    indicates if the contract suspension suspends the obligation
+-- 'power_resumed'    indicates if a power resumption resumes the obligation
+-- 'cnt_resumed'      indicates if the contract resumption resumes the obligation
+--------------------------------------------------------------------------------------
+MODULE Obligation(surviving, cnt_in_effect, cnt_untermination,
+                  fulfilled, triggered, violated, activated,
+				  expired1, power_suspended, cnt_suspended, terminated, power_resumed,
+				  cnt_resumed, discharged, antecedent)
+  DEFINE
+	_surviving	:= surviving;
+	_suspended 	:= (power_suspended | (cnt_suspended & !surviving));
+	_active 	:= (state = inEffect | state = suspension);
+
+  VAR
+	state 		: {not_created, create, inEffect, suspension, discharge,
+				   fulfillment, violation, unsTermination};
+	sus_state	: {not_suspended, sus_by_contract, sus_by_power};
+
+  ASSIGN
+ --NEW: update axioms(surviving obligations are not suspended! informally mentioned)
+ 	init(sus_state) := not_suspended;
+	next(sus_state)	:= case
+		sus_state=not_suspended & !surviving & cnt_suspended 	: sus_by_contract;
+		sus_state=sus_by_contract & !surviving & cnt_resumed	: not_suspended;
+		sus_state=not_suspended & !surviving & power_suspended 	: sus_by_power;
+		sus_state=sus_by_power & !surviving & power_resumed		: not_suspended;
+		TRUE													: sus_state;
+	esac;
+
+  ASSIGN
+    next(state) := case
+		cnt_in_effect & state=not_created   & triggered & !antecedent : create;
+		cnt_in_effect & state=not_created   & triggered & antecedent  : inEffect;
+		cnt_in_effect & state=create        & antecedent              : inEffect;
+		cnt_in_effect & state=create        & (expired1 | discharged)  : discharge;
+		cnt_in_effect & state=inEffect      & fulfilled               : fulfillment;
+		cnt_in_effect & state=inEffect      & _suspended              : suspension;
+		cnt_in_effect & state=inEffect      & violated                : violation;
+		cnt_in_effect & _active            	& terminated              : unsTermination;
+		cnt_untermination & !surviving  	& _active           	  : unsTermination;
+		sus_state=sus_by_contract & state=suspension  & cnt_resumed   : inEffect;
+		sus_state=sus_by_power	  & state=suspension  & power_resumed   : inEffect;
+		TRUE                                                          : state;
+  esac;
+
+--------------------------------------------------------------------------------------
+-- 'cnt_in_effect'    indicates if the contract is in inEffect state
+-- 'power_suspended' indicates if a power suspends the power
+-- 'cnt_suspended'   indicates if the contract suspension suspends the power
+-- 'power_resumed'     indicates if a power resumption resumes the power
+-- 'cnt_resumed'     indicates if the contract resumption resumes the power
+--------------------------------------------------------------------------------------
+MODULE Power(cnt_in_effect, triggered, activated, expired1, power_suspended, cnt_suspended,
+       	     terminated, exerted, power_resumed, cnt_resumed, antecedent)
+  DEFINE
+	_active 	 := (state = inEffect | state = suspension);
+	_suspended 	 := (power_suspended | cnt_suspended);
+
+  VAR
+	state 		: {not_created, create, inEffect, suspension, sTermination, unsTermination};
+	sus_state	: {not_suspended, sus_by_contract, sus_by_power};
+
+  ASSIGN
+	init(sus_state) := not_suspended;
+	next(sus_state)	:= case
+		sus_state=not_suspended & cnt_suspended 	: sus_by_contract;
+		sus_state=sus_by_contract & cnt_resumed		: not_suspended;
+		sus_state=not_suspended & power_suspended 	: sus_by_power;
+		sus_state=sus_by_power & power_resumed		: not_suspended;
+		TRUE										: sus_state;
+	esac;
+
+  ASSIGN
+   next(state) := case
+     cnt_in_effect & state = not_created 	& triggered & !antecedent : create;
+     cnt_in_effect & state = not_created 	& triggered & antecedent  : inEffect;
+     cnt_in_effect & state = create      	& antecedent              : inEffect;
+     cnt_in_effect & state = create      	& expired1                : unsTermination;
+     cnt_in_effect & state = inEffect    	& exerted                 : sTermination;
+     cnt_in_effect & state = inEffect   	& _suspended              : suspension;
+     cnt_in_effect & state = inEffect    	& expired1                : unsTermination;
+	 cnt_in_effect & _active  			 	& terminated              : unsTermination;
+
+	 sus_state=sus_by_contract & state=suspension  & cnt_resumed 	  : inEffect;
+	 sus_state=sus_by_power	   & state=suspension  & power_resumed      : inEffect;
+
+     TRUE                                          				   	  : state;
+   esac;
+
+--------------------------------------------------------------------------------------
+-- 'assigned_party'				 indicates if a party is assigned to a role
+-- 'revoked_party'				 indicates if a party is unassigned from a role
+-- 'fulfilled_active_obligation' indicates if all active obligations are fulfilled
+--------------------------------------------------------------------------------------
+MODULE Contract(triggered, activated, terminated, suspended, resumed,
+				revoked_party, assigned_party, fulfilled_active_obligation)
+  DEFINE
+	_active 	 := (state = unassign | state = inEffect | state = suspension);
+	_termination := (state = sTermination | state = unsTermination);
+
+	-- obligations/powers' status changes once the contract goes to inEffect state
+	_o_activated := (state = form & activated) |
+						(state = suspension & resumed) |
+						(state = unassign & assigned_party) |
+						(state = inEffect);
+
+  VAR
+	state 		 : { not_created, form, inEffect, suspension, unassign, sTermination, unsTermination};
+
+  ASSIGN
+    next(state) := case
+		state = not_created & triggered  					: form;
+		state = form        & activated  					: inEffect;
+		state = inEffect    & fulfilled_active_obligation  	: sTermination;
+		state = inEffect    & suspended  					: suspension;
+		state = inEffect    & revoked_party  				: unassign;
+		state = inEffect    & terminated 					: unsTermination;
+		state = suspension  & resumed    					: inEffect;
+		state = suspension  & terminated 					: unsTermination;
+		state = unassign    & assigned_party 				: inEffect;
+		state = unassign    & terminated 					: unsTermination;
+		TRUE                             					: state;
+    esac;
+--------------------------------------------------------------------------------------
+-- Pizza velivery contract
+--------------------------------------------------------------------------------------
+MODULE PizzaC(CntInit, OdelInit, OpayInit, OpayLInit, PcancelInit, PlatePInit, orderedInit, delInit1, delInit2, paidInit, paidLInit, canceledInit, createLpInit)
+  DEFINE
+  -- updated June06/11
+	sCTerminated 	:= !(Odel._active) & !(Opay._active) & !(OpayL._active) 
+					& (Odel.state=fulfillment | Opay.state=fulfillment | Opay.state=fulfillment)
+					& !PlateP._active;
+
+  VAR
+	ordered			: Event(TRUE, 5);
+	delivered1 	 	: Event(Odel.state=inEffect, 5);
+	delivered2 	 	: Event(delivered1._expired, 5);
+	paid		 	: Event(Opay.state=inEffect, 5);
+	paidL		 	: Event(PlateP.state=inEffect, 5);
+	canceled 		: Event(Pcancel.state=inEffect, 5);
+	createdLateP 	: Event(PlateP.state=inEffect, 5);
+	
+	Cnt 	: Contract(TRUE, TRUE, canceled._happened, FALSE, FALSE, FALSE, FALSE, sCTerminated);
+				  
+	Odel 	: Obligation(FALSE, Cnt._o_activated, canceled._happened, delivered1._happened,
+			TRUE, delivered1._expired, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, ordered._happened);
+
+	Opay 	: Obligation(FALSE, Cnt._o_activated, canceled._happened, paid._happened, TRUE,
+	paid._expired, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, delivered1._happened);
+
+	OpayL : Obligation(FALSE, Cnt._o_activated, canceled._happened,
+			paidL._happened, createdLateP._happened, paidL._expired, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, delivered1._happened);
+
+	Pcancel : Power(Cnt._o_activated, delivered1._expired, FALSE, FALSE, FALSE,
+			FALSE, FALSE, canceled._happened, FALSE, FALSE, TRUE);
+			
+	PlateP : Power(Cnt._o_activated, delivered1._expired, FALSE, FALSE, FALSE,
+			FALSE, FALSE, createdLateP._happened, FALSE, FALSE, delivered2._happened);
+		
+  ASSIGN
+	init(Cnt.state) := CntInit;
+	init(Odel.state) := OdelInit;
+	init(Opay.state) := OpayInit;
+	init(Pcancel.state) := PcancelInit;
+	init(OpayL.state) := PlatePInit;
+	init(ordered.state) := orderedInit;
+	init(delivered1.state) := delInit1;
+	init(delivered2.state) := delInit2;
+	init(paid.state) := paidInit;
+	init(paidL.state) := paidLInit;
+	init(canceled.state) := canceledInit;
+	init(createdLateP.state) := createLpInit;
+			
+MODULE main
+  VAR
+	pizzaC 	: PizzaC(form, not_created, not_created, not_created, not_created, not_created, active, happened, expired, active, active, happened, expired);
+
+  ASSIGN
+	------------------------------------------------------------------------------------
+	-- Generic liveness
+	------------------------------------------------------------------------------------
+	--* Number	   : 1.0
+	--* Description: a contract eventually terminates
+	--* Type 	   : desirable property
+	--* Pattern	   : Existence pattern #31
+	LTLSPEC NAME LTL1_0 := F(pizzaC.Cnt.state = sTermination | pizzaC.Cnt.state = unsTermination)
+
+	------------------------------------------------------------------------------------
+	-- Specific liveness
+	------------------------------------------------------------------------------------
+	--* Number	   : 2.0
+	--* Description: in case of late delivery, the restaurant is penalized no more than once.
+	--* Type	   : desirable property
+	--* Intention  : restaurant
+	--* Pattern	   : Absence pattern #13
+	LTLSPEC NAME LTL2_0 := G(pizzaC.OpayL.state=fulfillment -> G !(pizzaC.OpayL.state=inEffect))

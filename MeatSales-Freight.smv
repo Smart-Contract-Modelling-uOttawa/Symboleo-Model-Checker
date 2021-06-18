@@ -86,7 +86,7 @@ MODULE Party(norm, name, removeL, addL, removeR, addR, removeP, addP)
 	!(addR & removeR) &
 	!(addP & removeP) &
 	!(_is_rightHolder & _is_liable);
-
+	
 --------------------------------------------------------------------------------------
 -- 'cnt_in_effect'    indicates if the contract is in inEffect state
 -- 'power_suspended'  indicates if a power suspends the obligation
@@ -223,18 +223,13 @@ MODULE Contract(triggered, activated, terminated, suspended, resumed,
 MODULE Asset(owner)
 	DEFINE _owner := owner;
 	
-MODULE Role(party, role)
-	DEFINE
-		_party := party;
-		_role := role;
-		
 --------------------------------------------------------------------------------------
 -- Decleration
---------------------------------------------------------------------------------------	
-MODULE PerishableGood(owner, quantity, quality)	
+--------------------------------------------------------------------------------------
+MODULE PerishableGood(owner, qnt, qlt)	
 	DEFINE
-		_quantity := quantity;
-		_quality := quality;
+		quantity := qnt;
+		quality := qlt;
 	VAR
 		asset : Asset(owner);
 		
@@ -274,10 +269,10 @@ MODULE Disclosed(start, max_time, contractID)
 --------------------------------------------------------------------------------------
 -- Sales of Goods contract
 --------------------------------------------------------------------------------------
-MODULE MeatSales_Contract(cnt_id, party1, party2, qnt, qlt, amt, curr, pay_due_date, delAdd, effDate, del_due_days, intRate)
+MODULE MeatSales_Contract(cnt_id, buyer, seller, qnt, qlt, amt, curr, pay_due_date, delAdd, effDate, del_due_days, intRate, carrier_delivered)
   CONSTANTS
 	"Odel", "Opay",  "OlatePay", "SoBuyerDisclosure", "SoSellerDisclosure", "PsusDel", "PdelAssign", "PresumDel", "PterCnt", "goods";
-  DEFINE  
+  DEFINE
 	PsusDel_exerted	 	:= PsusDel._active & suspended_delivery._happened & suspended_delivery.performer=PsusDel_creditor._name
 						& PsusDel_creditor._is_performer;
 	PresumDel_exerted	:= PresumDel._active & resumed_delivery._happened & resumed_delivery.performer=PresDel_creditor._name
@@ -298,16 +293,14 @@ MODULE MeatSales_Contract(cnt_id, party1, party2, qnt, qlt, amt, curr, pay_due_d
 						!(delivered.event.performer = Odel_debtor._name & Odel_debtor._is_performer));
 	paidlate_performer  := (paidLate.event._happened & paidLate.event.performer = Olpay_debtor._name &
 						Olpay_debtor._is_performer);
+	PsubCnt_exerted	 	:= subcontracted._happened;	
 
   VAR	
-    seller : Role(party1, "seller");
-	buyer : Role(party2, "buyer");
-	
-	goods				: PerishableGood(seller._party, qnt, qlt);
+	goods				: PerishableGood(seller, qnt, qlt);
 	--* problem: cannot pass goods to the parameter of delivered
 	delivered			: Delivered(Odel.state=inEffect, del_due_days, "goods", delAdd, del_due_days);						
-	paid      			: Paid(Opay.state=inEffect, pay_due_date, amt, curr, buyer._party, seller._party, pay_due_date);
-	paidLate			: PaidLate(OlatePay.state=inEffect, 2, amt, curr, buyer._party, seller._party);
+	paid      			: Paid(Opay.state=inEffect, pay_due_date, amt, curr, buyer, seller, pay_due_date);
+	paidLate			: PaidLate(OlatePay.state=inEffect, 2, amt, curr, buyer, seller);
 	buyerDisclosed 		: Disclosed(C._active, 5, cnt_id);
 	sellerDisclosed 	: Disclosed(C._active, 5, cnt_id);
 
@@ -316,11 +309,13 @@ MODULE MeatSales_Contract(cnt_id, party1, party2, qnt, qlt, amt, curr, pay_due_d
 	
 	terminated_C   		: Event(PterCnt.state = inEffect, 4);	
 	sellerAssignedDel  	: Event(PdelAssign.state = inEffect, 4);
+	
+	subcontracted   	: Event(PsubCnt.state = inEffect, 10);
 
 	C 		 : Contract(TRUE, TRUE, PterCnt_exerted, FALSE, FALSE, FALSE, FALSE, sCTerminated);
 
 	Odel 	 : Obligation(FALSE, C._o_activated, PterCnt_exerted,
-                  (delivered.event._happened & delivered.event.performer = Odel_debtor._name & Odel_debtor._is_performer),
+                  (delivered.event._happened & delivered.event.performer = Odel_debtor._name & Odel_debtor._is_performer) | carrier_delivered,
                   TRUE, Odel_violated, FALSE, FALSE, PsusDel_exerted, FALSE, FALSE, PresumDel_exerted, FALSE, FALSE, TRUE);
 
 	Opay 	 : Obligation(FALSE, C._o_activated, PterCnt_exerted, paid_performer, TRUE, Opay_violated, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE);
@@ -345,210 +340,147 @@ MODULE MeatSales_Contract(cnt_id, party1, party2, qnt, qlt, amt, curr, pay_due_d
 
 	PdelAssign  : Power(C._o_activated, TRUE, FALSE, FALSE, FALSE,
 			   FALSE, FALSE, PdelAssign_exerted, FALSE, FALSE, TRUE);
+			   
+	PsubCnt  : Power(C._o_activated, TRUE, FALSE, FALSE, FALSE,
+				   FALSE, FALSE, PsubCnt_exerted, FALSE, FALSE, TRUE);
 
-	Odel_debtor   	: Party("Odel", seller._party, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
-	Odel_creditor 	: Party("Odel", buyer._party, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
-	SellDis_debtor	: Party("SoSellerDisclosure", seller._party, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
-	SellDis_creditor: Party("SoSellerDisclosure", buyer._party, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
+	Odel_debtor   	: Party("Odel", seller, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
+	Odel_creditor 	: Party("Odel", buyer, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
+	SellDis_debtor	: Party("SoSellerDisclosure", seller, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
+	SellDis_creditor: Party("SoSellerDisclosure", buyer, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
 
-	Opay_debtor   	: Party("Opay", buyer._party, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
-	Opay_creditor   : Party("Opay", seller._party, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
-	Olpay_debtor   	: Party("OlatePay", buyer._party, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
-	Olpay_creditor  : Party("OlatePay", seller._party, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
-	BuyDis_debtor   : Party("SoBuyerDisclosure", buyer._party, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
-	BuyDis_creditor	: Party("SoBuyerDisclosure", seller._party, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
 
-	PsusDel_debtor  : Party("PsusDel", buyer._party, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
-	PsusDel_creditor: Party("PsusDel", seller._party, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
-	PdelAsg_debtor  : Party("PdelAssign", buyer._party, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
-	PdelAsg_creditor: Party("PdelAssign", seller._party, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
+	Opay_debtor   	: Party("Opay", buyer, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
+	Opay_creditor   : Party("Opay", seller, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
+	Olpay_debtor   	: Party("OlatePay", buyer, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
+	Olpay_creditor  : Party("OlatePay", seller, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
+	BuyDis_debtor   : Party("SoBuyerDisclosure", buyer, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
+	BuyDis_creditor	: Party("SoBuyerDisclosure", seller, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
 
-	PresDel_debtor  : Party("PresumDel", seller._party, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
-	PresDel_creditor: Party("PresumDel", buyer._party, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
-	PterCnt_debtor  : Party("PterCnt", seller._party, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
-	PterCnt_creditor: Party("PterCnt", buyer._party, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
+	PsusDel_debtor  : Party("PsusDel", buyer, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
+	PsusDel_creditor: Party("PsusDel", seller, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
+	PdelAsg_debtor  : Party("PdelAssign", buyer, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
+	PdelAsg_creditor: Party("PdelAssign", seller, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
+
+	PresDel_debtor  : Party("PresumDel", seller, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
+	PresDel_creditor: Party("PresumDel", buyer, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
+	PterCnt_debtor  : Party("PterCnt", seller, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
+	PterCnt_creditor: Party("PterCnt", buyer, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
 
   INVAR
-	buyer._party != seller._party;
+	buyer != seller;
 
+--------------------------------------------------------------------------------------
+-- Freight contract
+--------------------------------------------------------------------------------------
+MODULE Freight_Contract(shipper, carrier, triggered, pay_due_date, del_due_days)
+  CONSTANTS
+		"OfrDel", "OfrPay", "OfrLatePay";
+  DEFINE 
+		sCTerminated 	:= !(OfrDel._active) & !(OfrPay._active) & !(OfrLatePay._active);
+		OfrPay_violated	:= frPaid._expired;
+
+  VAR 
+		frDelivered 	: Event(OfrDel.state=inEffect, del_due_days);
+		frPaid      	: Event(OfrPay.state=inEffect, pay_due_date);
+		frPaidLate     	: Event(OfrLatePay.state=inEffect, 10);
+
+		C : Contract(triggered, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, sCTerminated);
+
+		OfrDel 	  : Obligation(FALSE, C._o_activated, FALSE,
+                 frDelivered._happened & frDelivered.performer = Odel_debtor._name & Odel_debtor._is_performer, TRUE, frDelivered._expired,
+                 FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE);			
+		
+		OfrPay 	  : Obligation(FALSE, C._o_activated, FALSE,
+                 frPaid._happened & frPaid.performer = Opay_debtor._name & Opay_debtor._is_performer, frDelivered._happened & frDelivered.performer = Odel_debtor._name & Odel_debtor._is_performer,
+				 frPaid._expired, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE);
+		
+		OfrLatePay : Obligation(FALSE, C._o_activated, FALSE,
+                 frPaidLate._happened & frPaidLate.performer = Olpay_debtor._name & Olpay_debtor._is_performer, OfrPay_violated, frPaidLate._expired,
+                 FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE);
+		
+		Odel_debtor   	: Party("OfrDel", carrier, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
+		Odel_creditor 	: Party("OfrDel", shipper, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
+		
+		Opay_debtor   	: Party("OfrPay", shipper, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
+		Opay_creditor 	: Party("OfrPay", carrier, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
+		
+		Olpay_debtor   	: Party("OfrLatePay", shipper, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
+		Olpay_creditor 	: Party("OfrLatePay", carrier, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
 
 MODULE main
   CONSTANTS
-	"CBEEF", "COSTCO", "good", "cad", "nov21", "ottawa";
+	"CBEEF", "COSTCO", "FedEx", "Correo", "CPost", "good", "cad", "nov21", "ottawa", "id123";
+	
   VAR
-	sales_cnt 	: MeatSales_Contract(123, "COSTCO", "CBEEF", 4, "good", 1000, "cad", 4, "ottawa", "nov21", 4, 10);
+	sales_cnt 				: MeatSales_Contract("id123", "COSTCO", "CBEEF", 4, "good", 1000, "cad", 4, "ottawa", "nov21", 4, 10, (argToPortFreight_cnt.C.state=sTermination & portToCanFreight_cnt.C.state=sTermination & canToBuyerFreight_cnt.C.state=sTermination));
+	
+	argToPortFreight_cnt	: Freight_Contract(sales_cnt.seller, "Correo", sales_cnt.PsubCnt_exerted, 3, 5);
+	
+	portToCanFreight_cnt	: Freight_Contract(sales_cnt.seller, "FedEx", sales_cnt.PsubCnt_exerted & argToPortFreight_cnt.OfrDel.state=fulfillment, 3, 5);
+	
+	canToBuyerFreight_cnt : Freight_Contract(sales_cnt.seller, "CPost", sales_cnt.PsubCnt_exerted & portToCanFreight_cnt.OfrDel.state=fulfillment, 3, 5);
+	
+	--* subcontract
+	Odel_subcontractor : Party("Odel", "FedEx", FALSE, FALSE, FALSE, FALSE, canToBuyerFreight_cnt.C.state=sTermination, sales_cnt.PresumDel_exerted);
+	
 	
   ASSIGN
-	------------------------------------------------------------------------------------
-	-- Generic Properties
-	------------------------------------------------------------------------------------
-	--* Number	   : 1
-	--* Description: a contract eventually terminates
-	--* Type 	   : desirable property
-	--* Pattern	   : Existence pattern #31
-	--* Fails	   : if payment(Opay) is violated and the seller suspends delivery(Odel) by power
-	--*		   		 PsusDel while paidLate is expired, then there is no way to resume payment(Opay)
-	--* 	   		 by using PresumDel. Therefore, payment(Opay) is always suspended and then
-	--*				 contract stays active.
---	LTLSPEC NAME LTL1 := F(sales_cnt.C.state = sTermination | sales_cnt.C.state = unsTermination)
-
-	------------------------------------------------------------------------------------
-	-- Specific Properties
-	------------------------------------------------------------------------------------
-	--* Number	   : 2
-	--* Description: in case of late payment, the buyer is penalized no more than once.
-	--* Type	   : desirable property
-	--* Intention  : buyer
+	--* Number	   : 3.1
+	--* Description: (versus 1.2)a sales delivery is never violated after successful termination 
+	--*				 of freight contract
+	--* Type 	   : undesirable property
 	--* Pattern	   : Absence pattern #13
-	LTLSPEC NAME LTL2 := G(sales_cnt.paidLate.event._happened & sales_cnt.paidLate.event.performer = sales_cnt.Olpay_debtor._name & sales_cnt.Olpay_debtor._is_performer
-				-> G !(sales_cnt.paidLate.event._inactive))
-				
-	
-	--* Number	   : 3
-	--* Description: in any case, whenever delivery of goods occurs, payment has happend earlier
-	--* 			 (i.e., payment must happens before any delivery).
+	--* Fails	   : if buyer does not pay and consequently seller suspends delivery obligation, 
+	--*			     then successful termination of freight contract cannot fullfill delivery obligation	
+	LTLSPEC G(canToBuyerFreight_cnt.C.state = sTermination -> G !sales_cnt.Odel_violated)
+		
+	--* Number	   : 3.2
+	--* Description: a freight subcontract is never active after termination of sales contract
+	--* Type 	   : undesirable property
+	--* Pattern	   : Absence pattern #13
+	--* Fails	   : there is no freight termination power. Then, state of sales contract does 
+	--*				 not influence state of an active freight subcontract
+	LTLSPEC G(sales_cnt.C.state = sTermination | sales_cnt.C.state = unsTermination 
+				-> G !canToBuyerFreight_cnt.C._active)
+		
+	------------------------------------------------------------------------------------
+	-- Runtime verification
+	------------------------------------------------------------------------------------
+	--* Number	   : 5.0
+	--* Description: under the mentioned state(payment done, delivery is going on), a freight contract 
+	--*				 may fulfills delivery obligation in future
 	--* Type	   : desirable property
 	--* Intention  : seller
-	--* Pattern	   : Precedence pattern #51
-	--* Fails	   : delivery does not pertain to payment because delivery obligation(Odel) is
-	--*			    independent of payment obligation(Opay)
-	--* Pattern	   : Precedence pattern #51
---	LTLSPEC NAME LTL3 := !(sales_cnt.delivered.event._happened & sales_cnt.delivered.event.performer = sales_cnt.Odel_debtor._name & sales_cnt.Odel_debtor._is_performer) U
---						(sales_cnt.paid.event._happened & sales_cnt.paid.event.performer = sales_cnt.Opay_debtor._name & sales_cnt.Odel_debtor._is_performer)
-						
-	--* Number	   : 4
-	--* Description: in any case, if an order is paid off, the goods are definitely delivered.
-	--* Type	   : desirable property
-	--* Intention  : buyer
-	--* Pattern	   : Response pattern #41
-	--* Fails	   : delivery does not pertain to payment because delivery obligation(Odel) is
-	--*				 independent of payment obligation(Opay)
---	LTLSPEC NAME LTL4 := G(sales_cnt.paid._happened & sales_cnt.paid.performer = sales_cnt.Opay_debtor._name & sales_cnt.Opay_debtor._is_performer
---				-> F sales_cnt.delivered._happened & sales_cnt.delivered.performer =
---					 sales_cnt.Odel_debtor._name & sales_cnt.Odel_debtor._is_performer)
-
-	
-	--* Number	   : 5
-	--* Description: it is possible to suspend delivery whenever payment is ignored
-	--* Type	   : desirable property
-	--* Intention  : buyer
-	--* Pattern	   : Consequence pattern #3
-	--* Fails	   : CTL cannot model this property because AG checks all nodes including leaves.
-	--* 			 Because 'paid.expired' state is repreated in all nodes, 'suspended_delivery'
-	--*				 must happen in the future of a leaf(includig the leaf)! This is impossible
-	--*				 because suspended_delivery counter starts in a node and finally it may expire
-	--*				 at a leaf node.
---	CTLSPEC  NAME CTL1 := AG(sales_cnt.paid._expired & sales_cnt.paid.performer = sales_cnt.Opay_debtor._name & sales_cnt.Opay_debtor._is_performer
---				-> EF sales_cnt.suspended_delivery._happened & sales_cnt.suspended_delivery.performer
---						= sales_cnt.PsusDel_creditor._name & sales_cnt.PsusDel_creditor._is_performer)
-
-	--* Number	   : 6
-	--* Description: the contract shall terminates if delivery and payment are done before their due dates.
-	--* Type	   : desirable property
-	--* Pattern	   : Universality pattern #23
---	LTLSPEC NAME LTL5 := G((sales_cnt.delivered.event._happened & sales_cnt.delivered.event.performer = sales_cnt.Odel_debtor._name & sales_cnt.Odel_debtor._is_performer & sales_cnt.paid.event._happened &
---					sales_cnt.paid.event.performer = sales_cnt.Opay_debtor._name & sales_cnt.Opay_debtor._is_performer)
---					-> F sales_cnt.C.state=sTermination)
-
-	--* Number	   : 7
-	--* Description: it is possible to resume delivery obligation
-	--* Type	   : desirable property
-	--* Intention  : seller
-	--* Pattern	   : Consequence pattern #3
---	CTLSPEC NAME CTL2 := AG(sales_cnt.Odel.state = suspension -> EF sales_cnt.Odel.state = inEffect)
-
-	--* Number	   : 8
-	--* Description: obligations are no longer in effect whenever contract terminates
-	--* Type	   : desirable property
-	--* Pattern	   : Absence pattern #3
-	--* Fails	   : due to contract inconsistency. Contract termination power(PterCnt) is sensitive
-	--*				 to delivery event(not Odel status). Then, if delivery is expired, PterCnt may
-	--*				 terminate the contract(i.e., all active obligations terminate). Simultaneouly,
-	--*				 if payment is violated(Opay) and seller suspends delivery obligation(Odel),
-	--*			     paidLate event may resume Odel(by PresumDel) which is in conflict with
-	--*				 obligation termination.
---	LTLSPEC NAME LTL7 := G(sales_cnt.C.state = unsTermination -> G !(sales_cnt.Odel.state = inEffect |
---				sales_cnt.Opay.state = inEffect | sales_cnt.OlatePay.state = inEffect))
-
-	--* Number	   : 9
-	--* Description: good is always delivered after payment
-	--* Type	   : desirable property
-	--* Fails	   : Opay(payment) is prior to Odel(delivery)
-	--* Intention  : Seller
-	--* Pattern	   : Precedence pattern #51
---	LTLSPEC NAME LTL8 := !(sales_cnt.Odel.state = fulfillment) U sales_cnt.Opay.state = fulfillment
-
-	--* Number	   : 10
-	--* Description: penalty is counted maximum once
-	--* Type	   : desirable property
-	--* Intention  : buyer
-	--* Pattern	   : Absence pattern #13
---	LTLSPEC NAME LTL9 := G(sales_cnt.OlatePay.state = fulfillment -> G !(sales_cnt.OlatePay.state = inEffect))
-
-	--* Number	   : 11
-	--* Description: delivery assignment transfers the right from ALEX to SOFIA
-	--* Type	   : desirable property
-	--* Intention  : seller
-	--* Pattern	   : Universality pattern #23
---	LTLSPEC NAME LTL10 := G(sales_cnt.PdelAssign.state = sTermination -> G (!sales_cnt.Odel.party1.is_rightHolder &
---					sales_cnt.Odel.party3.is_rightHolder))
-	
-	--* Number	   : 12
-	--* Description: payment and late payment should not be active together
-	--* Type	   : desirable property
-	--* Pattern	   : Absence pattern #13
---	LTLSPEC NAME LTL11 := G(sales_cnt.OlatePay.state = inEffect -> G !(sales_cnt.Opay.state = inEffect))
-	
-	------------------------------------------------------------------------------------
-	-- Specific reachability(as a subset of liveness)
-	------------------------------------------------------------------------------------
-	--* Number	   : 13
-	--* Description: it is always possible to activate powers and obligations
-	--*				 (i.e., all powers and obligations are useful)
-	--* Type	   : desirable property
-	--* Pattern	   : Occurrence pattern #1
-	CTLSPEC NAME CTL4_1 := EF(sales_cnt.PsusDel._active);
-	CTLSPEC NAME CTL4_2 := EF(sales_cnt.PresumDel._active);
-	CTLSPEC NAME CTL4_3 := EF(sales_cnt.PterCnt._active);
-	CTLSPEC NAME CTL4_4 := EF(sales_cnt.Odel._active);
-	CTLSPEC NAME CTL4_5 := EF(sales_cnt.Opay._active);
-	CTLSPEC NAME CTL4_6 := EF(sales_cnt.OlatePay._active);
-	
-	------------------------------------------------------------------------------------
-	-- How to reach a goal
-	------------------------------------------------------------------------------------
-	--* Number	   : 14
-	--* Description: How to receive an order and terminate the contract without payment
-	--* Type	   : desirable property
-	--* Intention  : buyer
-	--* Pattern	   : Exclusion pattern #1
-	CTLSPEC NAME CTL5 := !EF((sales_cnt.sCTerminated | sales_cnt.C.state=unsTermination)
-				& sales_cnt.Odel.state = fulfillment
-				& ! (sales_cnt.Opay.state = fulfillment | sales_cnt.OlatePay.state = fulfillment))
-	
-	------------------------------------------------------------------------------------
-	-- Conformance Checking
-	------------------------------------------------------------------------------------
-	--* Number	   : 15
-	--* Description: the contract terminates if payment and delivery events happen by right parties.
-	--* Type	   : desirable property(liveness)
-	--* Intention  : 
-	--* Pattern	   : Response pattern #41
---	LTLSPEC NAME LTL12 := G(sales_cnt.paid_performer & sales_cnt.delivered_performer -> 
---							F(sales_cnt.C.state = sTermination & sales_cnt.Opay.state = fulfillment & sales_cnt.Odel.state = fulfillment));
-	
-	--* Number	   : 16
-	--* Description: Seller delivers the meat under appropriate condition, but Buyer does not pay.
-	--* Type	   : desirable property
-	--* Intention  : 
-	--* Pattern	   : Response pattern #41
---	LTLSPEC NAME LTL13 := G(sales_cnt.delivered_performer & G(!sales_cnt.paid_performer) -> 
---							F(sales_cnt.Odel.state = fulfillment & sales_cnt.Opay.state = violation));
-							
-	--* Number	   : 17
-	--* Description: Buyer resumes the suspended delivery obligation by paying a fine.
-	--* Type	   : desirable property
-	--* Intention  : 
-	--* Pattern	   : Response pattern #41
---	LTLSPEC NAME LTL6 := G(sales_cnt.Odel.state = suspension & sales_cnt.paidlate_performer -> 
---							F(sales_cnt.OlatePay.state = fulfillment & sales_cnt.Opay.state = violation));
+	 CTLSPEC AF(sales_cnt.C.state=inEffect &
+			  sales_cnt.Odel.state=inEffect &
+			  sales_cnt.Opay.state=fulfillment &
+			  sales_cnt.OlatePay.state=not_created &
+			  sales_cnt.PsusDel.state=not_created &
+			  sales_cnt.PresumDel.state=not_created &
+			  sales_cnt.PterCnt.state=not_created &
+			  !sales_cnt.PsubCnt_exerted &
+			  canToBuyerFreight_cnt.C.state=not_created
+			  ->  AX (canToBuyerFreight_cnt.C.state=form 
+						-> EF (canToBuyerFreight_cnt.C.state=sTermination -> AX 	
+							sales_cnt.Odel.state=fulfillment)
+					)
+				)
+		
+	--* Pattern	   : pattern #4 and #5
+	CTLSPEC AG(sales_cnt.C.state=inEffect &
+		  sales_cnt.Odel.state=inEffect &
+		  sales_cnt.Opay.state=fulfillment &
+		  sales_cnt.OlatePay.state=not_created &
+		  sales_cnt.PsusDel.state=not_created &
+		  sales_cnt.PresumDel.state=not_created &
+		  sales_cnt.PterCnt.state=not_created &
+		  !sales_cnt.PsubCnt_exerted &
+		  canToBuyerFreight_cnt.C.state=not_created
+		  -> AF(
+				AG(canToBuyerFreight_cnt.C.state=form 
+						-> EF (canToBuyerFreight_cnt.C.state=sTermination -> AX 
+							sales_cnt.Odel.state=fulfillment)
+					)
+				)
+			)
