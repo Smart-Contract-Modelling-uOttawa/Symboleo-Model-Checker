@@ -220,17 +220,69 @@ MODULE Contract(triggered, activated, terminated, suspended, resumed,
 --------------------------------------------------------------------------------------
 -- Domain Concepts
 --------------------------------------------------------------------------------------
+MODULE Role(party)
+ DEFINE
+	_party := party;
+
 MODULE Asset(owner)
 	DEFINE _owner := owner;
+ 
+MODULE Situation(proposition)
+ VAR state: {holds, not_holds};
+ ASSIGN
+    init(state) := not_holds;
+    next(state) := case
+		state = not_holds & proposition : holds;
+		state = holds & !proposition 	: not_holds;
+		TRUE 							: state;
+	esac;
 	
-MODULE Role(party, role)
-	DEFINE
-		_party := party;
-		_role := role;
-		
+MODULE HappensWithin(event, situation)
+ VAR state: {happened, not_happened};
+ ASSIGN
+    init(state) := not_happened;
+    next(state) := case
+		event.state = active & next(evnet.state) = happened & state = not_happened & situation.state = hold : happened;
+		TRUE : state;
+	esac;
+	
 --------------------------------------------------------------------------------------
 -- Decleration
 --------------------------------------------------------------------------------------	
+MODULE Seller(party, returnAddress)
+ DEFINE
+	_returnAddress := returnAddress;
+ VAR
+	role : Role(party);
+	
+MODULE Buyer(party, warehouse)
+ DEFINE
+	_warehouse := warehouse;
+ VAR
+	role : Role(party);
+
+MODULE Currency(cur)
+ VAR value  : {"CAD", "USD", "EUR"};
+ ASSIGN
+    init(state) := "CAD";
+    next(state) := case
+		cur = "CAD" : "CAD";
+		cur = "USD" : "USD";
+		cur = "EUR" : "EUR";
+		TRUE 		: state;
+	esac;
+	
+MODULE MeatQuality(quality)
+ VAR value  : {"PRIME", "AAA", "AA", "A"};
+ ASSIGN
+    init(state) := "PRIME";
+    next(state) := case
+		quality = "AAA" : "AAA";
+		quality = "AA"  : "AA";
+		quality = "A"   : "A";
+		TRUE 			: state;
+	esac;
+ 
 MODULE PerishableGood(owner, quantity, quality)	
 	DEFINE
 		_quantity := quantity;
@@ -269,45 +321,27 @@ MODULE Disclosed(start, max_time, contractID)
 	DEFINE
 		_contractID := contractID;
 	VAR
-		event : Event(start, max_time);
+		event : Event(start, max_time);		
 
 --------------------------------------------------------------------------------------
--- Sales of Goods contract
+-- Sale of Goods contract
 --------------------------------------------------------------------------------------
-MODULE MeatSales_Contract(cnt_id, party1, party2, qnt, qlt, amt, curr, pay_due_date, delAdd, effDate, del_due_days, intRate)
+MODULE MeatSale_Contract(cnt_id, buyer_party, seller_party, qnt, qlt, amt, curr, pay_due_date, delAdd, warehouse, effDate, del_due_days, intRate)
   CONSTANTS
 	"Odel", "Opay",  "OlatePay", "SoBuyerDisclosure", "SoSellerDisclosure", "PsusDel", "PdelAssign", "PresumDel", "PterCnt", "goods";
-  DEFINE  
-	PsusDel_exerted	 	:= PsusDel._active & suspended_delivery._happened & suspended_delivery.performer=PsusDel_creditor._name
-						& PsusDel_creditor._is_performer;
-	PresumDel_exerted	:= PresumDel._active & resumed_delivery._happened & resumed_delivery.performer=PresDel_creditor._name
-						& PresDel_creditor._is_performer;
-	PterCnt_exerted	 	:= PterCnt._active & terminated_C._happened & terminated_C.performer=PterCnt_creditor._name
-						& PterCnt_creditor._is_performer;
-	sCTerminated 		:= (C.state=inEffect) & !(Odel._active) & !(Opay._active) & !(OlatePay._active);
-
-	PdelAssign_exerted	:= PdelAssign._active & sellerAssignedDel._happened & sellerAssignedDel.performer=PdelAsg_creditor._name
-						& PdelAsg_creditor._is_performer;
-	Opay_violated		:= paid.event._expired | (paid.event._happened & !(paid.event.performer = Opay_debtor._name
-						& Opay_debtor._is_performer));
-	paid_performer		:= (paid.event._happened &
-						paid.event.performer = Opay_debtor._name & Opay_debtor._is_performer);
-	delivered_performer	:= (delivered.event._happened &
-						delivered.event.performer = Odel_debtor._name & Odel_debtor._is_performer);
-	Odel_violated		:= delivered.event._expired | (delivered.event._happened &
-						!(delivered.event.performer = Odel_debtor._name & Odel_debtor._is_performer));
-	paidlate_performer  := (paidLate.event._happened & paidLate.event.performer = Olpay_debtor._name &
-						Olpay_debtor._is_performer);
 
   VAR	
-    seller : Role(party1, "seller");
-	buyer : Role(party2, "buyer");
+	-- Decleration
+    seller	: Seller(seller_party, delAdd);
+	buyer	: Buyer(buyer_party, warehouse);
 	
-	goods				: PerishableGood(seller._party, qnt, qlt);
+	goods				: PerishableGood(seller.role._party, qnt, qlt);
 	--* problem: cannot pass goods to the parameter of delivered
-	delivered			: Delivered(Odel.state=inEffect, del_due_days, "goods", delAdd, del_due_days);						
-	paid      			: Paid(Opay.state=inEffect, pay_due_date, amt, curr, buyer._party, seller._party, pay_due_date);
-	paidLate			: PaidLate(OlatePay.state=inEffect, 2, amt, curr, buyer._party, seller._party);
+	delivered			: Delivered(Odel.state=inEffect, del_due_days, "goods", 
+							delAdd, del_due_days);						
+	paid      			: Paid(Opay.state=inEffect, pay_due_date, amt, curr, buyer.role._party, 
+							seller.role._party, pay_due_date);
+	paidLate			: PaidLate(OlatePay.state=inEffect, 2, amt, curr, buyer.role._party, seller.role._party);
 	buyerDisclosed 		: Disclosed(C._active, 5, cnt_id);
 	sellerDisclosed 	: Disclosed(C._active, 5, cnt_id);
 
@@ -317,66 +351,108 @@ MODULE MeatSales_Contract(cnt_id, party1, party2, qnt, qlt, amt, curr, pay_due_d
 	terminated_C   		: Event(PterCnt.state = inEffect, 4);	
 	sellerAssignedDel  	: Event(PdelAssign.state = inEffect, 4);
 
-	C 		 : Contract(TRUE, TRUE, PterCnt_exerted, FALSE, FALSE, FALSE, FALSE, sCTerminated);
 
-	Odel 	 : Obligation(FALSE, C._o_activated, PterCnt_exerted,
-                  (delivered.event._happened & delivered.event.performer = Odel_debtor._name & Odel_debtor._is_performer),
-                  TRUE, Odel_violated, FALSE, FALSE, PsusDel_exerted, FALSE, FALSE, PresumDel_exerted, FALSE, FALSE, TRUE);
+	-- Contract
+	cnt_termination : Situation(PterCnt._active & terminated_C._happened &
+						terminated_C.performer=PterCnt_creditor._name
+						& PterCnt_creditor._is_performer);
+						
+	cnt_succ_Termination : Situation((C.state=inEffect) & !(Odel._active) & !(Opay._active) & !(OlatePay._active));
+	C 		 : Contract(TRUE, TRUE, cnt_termination.state = holds, FALSE, FALSE, FALSE, 
+				FALSE, cnt_succ_Termination.state = holds);
+	
+	
+	-- Delivery Obligation
+	Odel_antecedent : Situation(TRUE);
+	Odel_consequent : Situation(delivered.event._happened & 
+						delivered.event.performer = Odel_debtor._name & 
+						Odel_debtor._is_performer);
+	Odel_trigger	: Situation(TRUE);
+	Odel_violation	: Situation(delivered.event._expired | (delivered.event._happened &
+						!(delivered.event.performer = Odel_debtor._name & Odel_debtor._is_performer)));
+	Odel_resumption	: Situation(PresumDel._active & resumed_delivery._happened & 
+						resumed_delivery.performer=PresDel_creditor._name
+						& PresDel_creditor._is_performer);
+	Odel_suspension	: Situation(PsusDel._active & suspended_delivery._happened &
+						suspended_delivery.performer=PsusDel_creditor._name
+						& PsusDel_creditor._is_performer);	
+				  
+	Odel 	 : Obligation(FALSE, C._o_activated, cnt_termination.state = holds,
+                  Odel_consequent.state = holds, Odel_trigger.state = holds, 
+				  Odel_violation.state = holds, FALSE, FALSE, Odel_suspension.state = holds, FALSE, FALSE, Odel_resumption.state = holds, FALSE, FALSE, Odel_antecedent.state = holds);
 
-	Opay 	 : Obligation(FALSE, C._o_activated, PterCnt_exerted, paid_performer, TRUE, Opay_violated, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE);
+	-- Payment obligation
+	Opay_fulfillment: Situation(paid.event._happened &
+						paid.event.performer = Opay_debtor._name & Opay_debtor._is_performer);
+	Opay_violation	: Situation(paid.event._expired | (paid.event._happened & 
+						!(paid.event.performer = Opay_debtor._name & Opay_debtor._is_performer)));
+						
+	Opay 	 : Obligation(FALSE, C._o_activated, cnt_termination.state = holds, 
+				Opay_fulfillment.state = holds, TRUE, Opay_violation.state = holds, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE);
 
-	OlatePay : Obligation(FALSE, C._o_activated, PterCnt_exerted,
-                  paidlate_performer, Opay_violated, paidLate.event._expired, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE);
+	-- Late payment obligation
+	Opaidlate_fulfillment : Situation(paidLate.event._happened & paidLate.event.performer = Olpay_debtor._name &
+						Olpay_debtor._is_performer);
+						
+	OlatePay : Obligation(FALSE, C._o_activated, cnt_termination.state = holds,
+                  Opaidlate_fulfillment.state = holds, Opay_violation.state = holds, paidLate.event._expired, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE);
 
-	SoBuyerDisclosure : Obligation(TRUE, C._o_activated, PterCnt_exerted,
+	-- Serviving obligations
+	SoBuyerDisclosure : Obligation(TRUE, C._o_activated, cnt_termination.state = holds,
                   buyerDisclosed.event._expired, TRUE, (buyerDisclosed.event._happened & buyerDisclosed.event.performer = BuyDis_debtor._name & BuyDis_debtor._is_performer), FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE);
 
-	SoSellerDisclosure : Obligation(TRUE, C._o_activated, PterCnt_exerted,
+	SoSellerDisclosure : Obligation(TRUE, C._o_activated, cnt_termination.state = holds,
                   sellerDisclosed.event._expired , TRUE, (sellerDisclosed.event._happened & sellerDisclosed.event.performer = SellDis_debtor._name & SellDis_debtor._is_performer),
 				  FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE);
 
-	PsusDel  : Power(C._o_activated, Opay_violated, FALSE, FALSE, FALSE,
-			   FALSE, FALSE, PsusDel_exerted, FALSE, FALSE, TRUE);
+	-- Powers
+	PsusDel  : Power(C._o_activated, Opay_violation.state = holds, FALSE, FALSE, FALSE,
+			   FALSE, FALSE, Odel_suspension.state = holds, FALSE, FALSE, TRUE);
 
-	PresumDel: Power(C._o_activated, paidlate_performer, FALSE, FALSE, FALSE, FALSE, FALSE, PresumDel_exerted, FALSE, FALSE, TRUE);
+	PresumDel: Power(C._o_activated, Opaidlate_fulfillment.state = holds, FALSE, FALSE, 
+			   FALSE, FALSE, FALSE, Odel_resumption.state = holds, FALSE, FALSE, TRUE);
 			 
-	PterCnt  : Power(C._o_activated, Odel_violated, FALSE, FALSE, FALSE,
-			   FALSE, FALSE, PterCnt_exerted, FALSE, FALSE, TRUE);
+	PterCnt  : Power(C._o_activated, Odel_violation.state = holds, FALSE, FALSE, FALSE,
+			   FALSE, FALSE, cnt_termination.state = holds, FALSE, FALSE, TRUE);
 
+	-- Assignment power
+	PdelAssign_exertion	: Situation(PdelAssign._active & sellerAssignedDel._happened &
+				sellerAssignedDel.performer=PdelAsg_creditor._name & PdelAsg_creditor._is_performer);
+				
 	PdelAssign  : Power(C._o_activated, TRUE, FALSE, FALSE, FALSE,
-			   FALSE, FALSE, PdelAssign_exerted, FALSE, FALSE, TRUE);
+				FALSE, FALSE, PdelAssign_exertion.state = holds, FALSE, FALSE, TRUE);
 
-	Odel_debtor   	: Party("Odel", seller._party, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
-	Odel_creditor 	: Party("Odel", buyer._party, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
-	SellDis_debtor	: Party("SoSellerDisclosure", seller._party, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
-	SellDis_creditor: Party("SoSellerDisclosure", buyer._party, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
+	Odel_debtor   	: Party("Odel", seller.role._party, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
+	Odel_creditor 	: Party("Odel", buyer.role._party, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
+	SellDis_debtor	: Party("SoSellerDisclosure", seller.role._party, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
+	SellDis_creditor: Party("SoSellerDisclosure", buyer.role._party, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
 
-	Opay_debtor   	: Party("Opay", buyer._party, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
-	Opay_creditor   : Party("Opay", seller._party, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
-	Olpay_debtor   	: Party("OlatePay", buyer._party, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
-	Olpay_creditor  : Party("OlatePay", seller._party, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
-	BuyDis_debtor   : Party("SoBuyerDisclosure", buyer._party, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
-	BuyDis_creditor	: Party("SoBuyerDisclosure", seller._party, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
+	Opay_debtor   	: Party("Opay", buyer.role._party, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
+	Opay_creditor   : Party("Opay", seller.role._party, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
+	Olpay_debtor   	: Party("OlatePay", buyer.role._party, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
+	Olpay_creditor  : Party("OlatePay", seller.role._party, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
+	BuyDis_debtor   : Party("SoBuyerDisclosure", buyer.role._party, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
+	BuyDis_creditor	: Party("SoBuyerDisclosure", seller.role._party, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
 
-	PsusDel_debtor  : Party("PsusDel", buyer._party, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
-	PsusDel_creditor: Party("PsusDel", seller._party, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
-	PdelAsg_debtor  : Party("PdelAssign", buyer._party, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
-	PdelAsg_creditor: Party("PdelAssign", seller._party, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
+	PsusDel_debtor  : Party("PsusDel", buyer.role._party, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
+	PsusDel_creditor: Party("PsusDel", seller.role._party, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
+	PdelAsg_debtor  : Party("PdelAssign", buyer.role._party, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
+	PdelAsg_creditor: Party("PdelAssign", seller.role._party, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
 
-	PresDel_debtor  : Party("PresumDel", seller._party, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
-	PresDel_creditor: Party("PresumDel", buyer._party, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
-	PterCnt_debtor  : Party("PterCnt", seller._party, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
-	PterCnt_creditor: Party("PterCnt", buyer._party, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
+	PresDel_debtor  : Party("PresumDel", seller.role._party, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
+	PresDel_creditor: Party("PresumDel", buyer.role._party, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
+	PterCnt_debtor  : Party("PterCnt", seller.role._party, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE);
+	PterCnt_creditor: Party("PterCnt", buyer.role._party, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE);
 
   INVAR
-	buyer._party != seller._party;
+	buyer.role._party != seller.role._party;
 
 
 MODULE main
   CONSTANTS
 	"CBEEF", "COSTCO", "good", "cad", "nov21", "ottawa";
   VAR
-	sales_cnt 	: MeatSales_Contract(123, "COSTCO", "CBEEF", 4, "good", 1000, "cad", 4, "ottawa", "nov21", 4, 10);
+	sales_cnt 	: MeatSale_Contract(123, "COSTCO", "CBEEF", 4, "good", 1000, "cad", 4, "ottawa" , "ottawa", "nov21", 4, 10);
 	
   ASSIGN
 	------------------------------------------------------------------------------------
@@ -522,7 +598,7 @@ MODULE main
 	--* Type	   : desirable property
 	--* Intention  : buyer
 	--* Pattern	   : Exclusion pattern #1
-	CTLSPEC NAME CTL5 := !EF((sales_cnt.sCTerminated | sales_cnt.C.state=unsTermination)
+	CTLSPEC NAME CTL5 := !EF((sales_cnt.cnt_termination.state=holds | sales_cnt.C.state=unsTermination)
 				& sales_cnt.Odel.state = fulfillment
 				& ! (sales_cnt.Opay.state = fulfillment | sales_cnt.OlatePay.state = fulfillment))
 	
