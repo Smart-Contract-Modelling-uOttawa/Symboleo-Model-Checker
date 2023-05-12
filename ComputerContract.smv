@@ -561,51 +561,66 @@ MODULE ComputerContract (party1, party2, computer,address, paidAmount, reimburse
 		oReimburse.state=fulfillment : 0;
 		 TRUE :deposit.amount;
 		esac;
-MODULE main
-CONSTANTS
-"PC-Mart", "NextComp", "Amal", "Sofana", "workstation", "laptop", "desktop", "monitor", "keyboard", "mouse", "Ottawa", "Montreal";
-FROZENVAR
-cust_name : {"Amal", "Sofana"};
-store_name : {"PC-Mart", "NextComp"};
-address : {"Ottawa", "Montreal"};
-type : {"workstation", "laptop", "desktop"};
-options : {"monitor", "keyboard", "mouse"};
-price : real;
-orderedDate: {1, 3,4,5};
-deliveredDate: {6, 7,9,1};
-VAR
-paidAmount :real;
-depositAmount:real; 
-reimburseAmount: real;
-paidLateAmount:real;
+		
+		MODULE main
+		CONSTANTS
+		"PC-Mart", "NextComp", "Amal", "Sofana", "workstation", "laptop", "desktop", "monitor", "keyboard", "mouse", "Ottawa", "Montreal";
+		FROZENVAR
+		cust_name : {"Amal", "Sofana"};
+		store_name : {"PC-Mart", "NextComp"};
+		address : {"Ottawa", "Montreal"};
+		type : {"workstation", "laptop", "desktop"};
+		options : {"monitor", "keyboard", "mouse"};
+		price : real;
+		orderedDate: {1, 3,4,5};
+		deliveredDate: {6, 7,9,1};
+		VAR
+		paidAmount :real;
+		depositAmount:real; 
+		reimburseAmount: real;
+		paidLateAmount:real;
 
--- CONSTRAINTS
-INIT 1000.0 <= price & price <= 3000.0;
-INVAR 150.0 <= depositAmount & depositAmount <= 250.0;
-INVAR  paidLateAmount = price* 0.95;
-INVAR 1000.0 <= paidAmount & paidAmount <= 3000.0;
-INVAR reimburseAmount = depositAmount;
---ASSIGN
---		 init(reimburseAmount):=0.0 ;
---		 init(paidAmount):=price - depositAmount;
-VAR
-computer : Computer(cust_name, type, price, options);
-computer_cnt : ComputerContract(cust_name, store_name, computer, address, paidAmount, reimburseAmount, depositAmount,paidLateAmount,orderedDate,deliveredDate);
--- Global contract properties
---LTLSPEC NAME LTL1 := F(computer_cnt.cnt.state = sTermination | computer_cnt.cnt.state = unsTermination);
--- specific contract properties
---- 2
---LTLSPEC NAME LTL2 := G (computer_cnt.pLateComp.state=fulfillment ->
- --                        G !(computer_cnt.oPayLateD.state=inEffect));
---- 3
---LTLSPEC NAME LTL3 := !(computer_cnt.oDel.state = fulfillment) U (computer_cnt.oPay.state = fulfillment | computer_cnt.oPayLateD.state = fulfillment);
---- 4 This one with no Response
---LTLSPEC NAME LTL4_1 := (F(computer_cnt.oPay.state = fulfillment) -> F(computer_cnt.oDel.state = inEffect));
-----------------------------------------------------------------------------------------------------------
- -- LTLSPEC NAME LTL4_1 :=G ((computer_cnt.ordered.event._happened)-> F(computer_cnt.oDel.state = inEffect | computer_cnt.oDel._active | computer_cnt.oDel.state = fulfillment | computer_cnt.oDel.state = violation));
---------------------------------------------------------------------------------------------------------------
- --LTLSPEC NAME LTL5 := G(!((F(computer_cnt.cnt.sTermination -> computer_cnt.cnt.state= unsTermination)) & (computer_cnt.oDel.state = fulfillment) & !((computer_cnt.oPay.state = fulfillment) -> (computer_cnt.oPayLateD.state = fulfillment))));
- 
--- 5 describe this: 
---CTLSPEC NAME CTL5 := !EF((computer_cnt.cnt.sTermination | computer_cnt.cnt.state= unsTermination) & computer_cnt.oDel.state=fulfillment & !(computer_cnt.oPay.state=fulfillment | computer_cnt.oPayLateD.state=fulfillment))
-LTLSPEC NAME LTL5 := G((((computer_cnt.cnt.state= sTermination | computer_cnt.cnt.state= unsTermination) & computer_cnt.oDel.state=fulfillment) ->G(computer_cnt.oPay.state=fulfillment | computer_cnt.oPayLateD.state=fulfillment)))
+		-- CONSTRAINTS
+		INIT 1000.0 <= price & price <= 3000.0;
+		INVAR 150.0 <= depositAmount & depositAmount <= 250.0;
+		INVAR  paidLateAmount = price* 0.95;
+		INVAR 1000.0 <= paidAmount & paidAmount <= 3000.0;
+		INVAR reimburseAmount = depositAmount;
+		--ASSIGN
+		--		 init(reimburseAmount):=0.0 ;
+		--		 init(paidAmount):=price - depositAmount;
+		VAR
+		computer : Computer(cust_name, type, price, options);
+		computer_cnt : ComputerContract(cust_name, store_name, computer, address, paidAmount, reimburseAmount, depositAmount,paidLateAmount,orderedDate,deliveredDate);
+
+		-- Global contract properties
+
+		--* Number      : P1
+		--* Description : A contract eventually terminates.
+		--* Type        : Desirable property
+		LTLSPEC NAME LTL1 := F(computer_cnt.Cnt.state = sTermination | computer_cnt.Cnt.state = unsTermination)
+
+		-- Specific properties
+
+		--* Number     : P2
+		--* Description: In case of late delivery, the store is penalized no more than once.
+		--* Type       : Desirable property
+		LTLSPEC NAME LTL2 := G (computer_cnt.pLateComp.state=fulfillment ->
+					 G !(computer_cnt.oPayLateD.state=inEffect))
+
+		--* Number      : P3
+		--* Description : The computer is always paid after on-time delivery.
+		--* Type        : Desirable property
+		--* Fails       : Payment obligations depend on the delivered event, not delivery obligation. Therefore, the computer may deliver after 10 days and customer is obliged to pay.
+		LTLSPEC NAME LTL3 := !(computer_cnt.oDel.state = fulfillment) U (computer_cnt.oPay.state = fulfillment | computer_cnt.oPayLateD.state = fulfillment)
+
+		--* Number      : P4
+		--* Description : This property essentially ensures that the delivery starts once the deposit for the computer is received.
+		--* Type        : Desirable property
+		LTLSPEC NAME LTL4_1 := F ((computer_cnt.oPay.state = fulfillment) -> F(computer_cnt.oDel.state = inEffect));
+
+		--* Number      : P5
+		--* Description : It is possible to receive a computer and terminate the contract without payment. We aim to generate a witness here.
+		--* Type     : Undesirable property
+
+		LTLSPEC NAME LTL5 := G(((computer_cnt.cnt.state= sTermination | computer_cnt.cnt.state= unsTermination) & computer_cnt.oDel.state=fulfillment) ->G(computer_cnt.oPay.state=fulfillment | computer_cnt.oPayLateD.state=fulfillment));
