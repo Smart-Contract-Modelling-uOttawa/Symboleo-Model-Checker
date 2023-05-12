@@ -562,8 +562,8 @@ MODULE ComputerContract (party1, party2, computer,address, paidAmount, reimburse
 		 TRUE :deposit.amount;
 		esac;
 		
-		MODULE main
-		CONSTANTS
+	MODULE main
+	   CONSTANTS
 		"PC-Mart", "NextComp", "Amal", "Sofana", "workstation", "laptop", "desktop", "monitor", "keyboard", "mouse", "Ottawa", "Montreal";
 		FROZENVAR
 		cust_name : {"Amal", "Sofana"};
@@ -580,7 +580,7 @@ MODULE ComputerContract (party1, party2, computer,address, paidAmount, reimburse
 		reimburseAmount: real;
 		paidLateAmount:real;
 
-		-- CONSTRAINTS
+	-- CONSTRAINTS
 		INIT 1000.0 <= price & price <= 3000.0;
 		INVAR 150.0 <= depositAmount & depositAmount <= 250.0;
 		INVAR  paidLateAmount = price* 0.95;
@@ -593,14 +593,14 @@ MODULE ComputerContract (party1, party2, computer,address, paidAmount, reimburse
 		computer : Computer(cust_name, type, price, options);
 		computer_cnt : ComputerContract(cust_name, store_name, computer, address, paidAmount, reimburseAmount, depositAmount,paidLateAmount,orderedDate,deliveredDate);
 
-		-- Global contract properties
+	-- Global contract properties
 
 		--* Number      : P1
 		--* Description : A contract eventually terminates.
 		--* Type        : Desirable property
 		LTLSPEC NAME LTL1 := F(computer_cnt.Cnt.state = sTermination | computer_cnt.Cnt.state = unsTermination)
 
-		-- Specific properties
+	-- Specific properties
 
 		--* Number     : P2
 		--* Description: In case of late delivery, the store is penalized no more than once.
