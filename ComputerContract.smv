@@ -390,7 +390,8 @@ MODULE ComputerContract (party1, party2, computer,address, paidAmount, reimburse
 		
 		reimburse : Reimburse(cnt.state=inEffect,reimburseAmount);
 		
-		
+		pCancel_exerted :Event(pCancel.state=inEffect);
+		pLateComp_exerted :Event(pLateComp.state=inEffect);
 		cnt_succ_Termination : Situation((cnt.state=inEffect)
 		& !(oOrder._active)
 		& !(oDel._active)
@@ -524,17 +525,20 @@ MODULE ComputerContract (party1, party2, computer,address, paidAmount, reimburse
 		-- IMPLICIT CONSTRAINTS
 		-----------------------
 		INVAR 
-		 ((hbefore_delivered_ordered_date_7_days.time <  hafter_paidLateDel_ordered_date_10_days.time) & (hafter_paidLateDel_ordered_date_10_days.state =happened )) -> ( (hbefore_delivered_ordered_date_7_days.event.state = happened | hbefore_delivered_ordered_date_7_days.event.state = expired) )
+		 ((ordered.date + 240 <  ordered.date + 240) & (paidLateDel.event.state =happened )) -> ( 
+		 (paid.event.state = happened | paid.event.state = expired) )
 		INVAR 
-		 ((hbefore_delivered_ordered_date_7_days.time <  hbefore_paid_ordered_date_10_days.time) & (hbefore_paid_ordered_date_10_days.event.state = active)) -> ( 
-		 (hbefore_delivered_ordered_date_7_days.event.state = happened | hbefore_delivered_ordered_date_7_days.event.state = expired) )
+		 ((ordered.date + 240 <  ordered.date + 168) & (delivered.event.state = active)) -> ( 
+		 (paid.event.state = happened | paid.event.state = expired) )
 		INVAR 
-		 ((hafter_paidLateDel_ordered_date_10_days.time <  hbefore_paid_ordered_date_10_days.time) & (hbefore_paid_ordered_date_10_days.event.state = active)) -> ( 
-		 (hafter_paidLateDel_ordered_date_10_days.event.state = happened | hafter_paidLateDel_ordered_date_10_days.event.state = expired) )
+		 ((ordered.date + 240 <  ordered.date + 168) & (delivered.event.state = active)) -> ( 
+		 (paidLateDel.event.state = happened | paidLateDel.event.state = expired) )
 		INVAR 
-		 ((hbefore_paid_ordered_date_10_days.time <  hafter_paidLateDel_ordered_date_10_days.time) & (hafter_paidLateDel_ordered_date_10_days.event.state =happened )) -> ( 
-		 (hbefore_paid_ordered_date_10_days.event.state = happened | hbefore_paid_ordered_date_10_days.event.state = expired) )
-		
+		 ((ordered.date + 168 <  ordered.date + 240) & (paid.event.state = active)) -> ( 
+		 (delivered.event.state = happened | delivered.event.state = expired) )
+		INVAR 
+		 ((ordered.date + 168 <  ordered.date + 240) & (paidLateDel.event.state =happened )) -> ( 
+		 (delivered.event.state = happened | delivered.event.state = expired) )		
 		--------------
 		-- CONSTRAINTS
 		--------------
@@ -561,66 +565,63 @@ MODULE ComputerContract (party1, party2, computer,address, paidAmount, reimburse
 		oReimburse.state=fulfillment : 0;
 		 TRUE :deposit.amount;
 		esac;
-		
-	MODULE main
-	   CONSTANTS
-		"PC-Mart", "NextComp", "Amal", "Sofana", "workstation", "laptop", "desktop", "monitor", "keyboard", "mouse", "Ottawa", "Montreal";
-		FROZENVAR
-		cust_name : {"Amal", "Sofana"};
-		store_name : {"PC-Mart", "NextComp"};
-		address : {"Ottawa", "Montreal"};
-		type : {"workstation", "laptop", "desktop"};
-		options : {"monitor", "keyboard", "mouse"};
-		price : real;
-		orderedDate: {1, 3,4,5};
-		deliveredDate: {6, 7,9,1};
-		VAR
-		paidAmount :real;
-		depositAmount:real; 
-		reimburseAmount: real;
-		paidLateAmount:real;
+MODULE main
+CONSTANTS
+"PC-Mart", "NextComp", "Amal", "Sofana", "workstation", "laptop", "desktop", "monitor", "keyboard", "mouse", "Ottawa", "Montreal";
+FROZENVAR
+cust_name : {"Amal", "Sofana"};
+store_name : {"PC-Mart", "NextComp"};
+address : {"Ottawa", "Montreal"};
+type : {"workstation", "laptop", "desktop"};
+options : {"monitor", "keyboard", "mouse"};
+price : real;
+orderedDate: {1, 3, 4, 5};
+deliveredDate: {6, 7, 9, 1};
+VAR
+paidAmount :real;
+depositAmount:real; 
+reimburseAmount: real;
+paidLateAmount:real;
 
-	-- CONSTRAINTS
-		INIT 1000.0 <= price & price <= 3000.0;
-		INVAR 150.0 <= depositAmount & depositAmount <= 250.0;
-		INVAR  paidLateAmount = price* 0.95;
-		INVAR 1000.0 <= paidAmount & paidAmount <= 3000.0;
-		INVAR reimburseAmount = depositAmount;
-		--ASSIGN
-		--		 init(reimburseAmount):=0.0 ;
-		--		 init(paidAmount):=price - depositAmount;
-		VAR
-		computer : Computer(cust_name, type, price, options);
-		computer_cnt : ComputerContract(cust_name, store_name, computer, address, paidAmount, reimburseAmount, depositAmount,paidLateAmount,orderedDate,deliveredDate);
+-- CONSTRAINTS
+INIT 1000.0 <= price & price <= 3000.0;
+INVAR 150.0 <= depositAmount & depositAmount <= 250.0;
+INVAR  paidLateAmount = price* 0.95;
+INVAR 1000.0 <= paidAmount & paidAmount <= 3000.0;
+INVAR reimburseAmount = depositAmount;
+--ASSIGN
+--		 init(reimburseAmount):=0.0 ;
+--		 init(paidAmount):=price - depositAmount;
+VAR
+computer : Computer(cust_name, type, price, options);
+computer_cnt : ComputerContract(cust_name, store_name, computer, address, paidAmount, reimburseAmount, depositAmount,paidLateAmount,orderedDate,deliveredDate);
+--* Number      : P1
+--* Description : A contract eventually terminates.
+--* Type        : Desirable property
+LTLSPEC NAME LTL11 := F(computer_cnt.cnt.state = sTermination | computer_cnt.cnt.state = unsTermination)
+--* Number     : P2
+--* Description: In case of late delivery, the store is penalized no more than once.
+--* Type       : Desirable property
+LTLSPEC NAME LTL2 := G (computer_cnt.pLateComp.state=fulfillment ->
+                         G !(computer_cnt.oPayLateD.state=inEffect))
+--* Number      : P3
+--* Description : The computer is always paid after on-time delivery.
+--* Type        : Desirable property
+--* Fails       : Payment obligations depend on the delivered event, not delivery obligation. Therefore, the computer may deliver after 10 days and customer is obliged to pay.
+LTLSPEC NAME LTL3 := !(computer_cnt.oDel.state = fulfillment) U (computer_cnt.oPay.state = fulfillment | computer_cnt.oPayLateD.state = fulfillment)
+--* Number      : P4
+--* Description : This property essentially ensures that the delivery starts once the deposit for the computer is received.
+--* Type        : Desirable property
+LTLSPEC NAME LTL4_1 := F ((computer_cnt.oPay.state = fulfillment) -> F(computer_cnt.oDel.state = inEffect));
+--* Number      : P5
+--* Description : It is possible to receive a computer and terminate the contract without payment. We aim to generate a witness here.
+--* Type     : Undesirable property
+LTLSPEC NAME LTL5 := G(((computer_cnt.cnt.state= sTermination | computer_cnt.cnt.state= unsTermination) & computer_cnt.oDel.state=fulfillment) ->G(computer_cnt.oPay.state=fulfillment | computer_cnt.oPayLateD.state=fulfillment));
+--- How to execute
+-- nuXmv -int <filename>
+-- nuxmv.exe -int C:\nuXmv-2.0.0-win64\bin\ComputerContract.smv
+-- on the nuxmv shell
 
-	-- Global contract properties
-
-		--* Number      : P1
-		--* Description : A contract eventually terminates.
-		--* Type        : Desirable property
-		LTLSPEC NAME LTL1 := F(computer_cnt.Cnt.state = sTermination | computer_cnt.Cnt.state = unsTermination)
-
-	-- Specific properties
-
-		--* Number     : P2
-		--* Description: In case of late delivery, the store is penalized no more than once.
-		--* Type       : Desirable property
-		LTLSPEC NAME LTL2 := G (computer_cnt.pLateComp.state=fulfillment ->
-					 G !(computer_cnt.oPayLateD.state=inEffect))
-
-		--* Number      : P3
-		--* Description : The computer is always paid after on-time delivery.
-		--* Type        : Desirable property
-		--* Fails       : Payment obligations depend on the delivered event, not delivery obligation. Therefore, the computer may deliver after 10 days and customer is obliged to pay.
-		LTLSPEC NAME LTL3 := !(computer_cnt.oDel.state = fulfillment) U (computer_cnt.oPay.state = fulfillment | computer_cnt.oPayLateD.state = fulfillment)
-
-		--* Number      : P4
-		--* Description : This property essentially ensures that the delivery starts once the deposit for the computer is received.
-		--* Type        : Desirable property
-		LTLSPEC NAME LTL4_1 := F ((computer_cnt.oPay.state = fulfillment) -> F(computer_cnt.oDel.state = inEffect));
-
-		--* Number      : P5
-		--* Description : It is possible to receive a computer and terminate the contract without payment. We aim to generate a witness here.
-		--* Type     : Undesirable property
-
-		LTLSPEC NAME LTL5 := G(((computer_cnt.cnt.state= sTermination | computer_cnt.cnt.state= unsTermination) & computer_cnt.oDel.state=fulfillment) ->G(computer_cnt.oPay.state=fulfillment | computer_cnt.oPayLateD.state=fulfillment));
+-- go_msat
+-- check_ltlspec_ic3 -i 
+-- quit
